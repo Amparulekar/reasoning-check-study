@@ -119,7 +119,7 @@ function loadItems(){  // the public build stores the items base64-encoded (not 
 let DATA = loadItems();
 const SUBMIT_URL = "";  // Google Apps Script web app that appends answers to the study's Sheet
 const N_SLOTS = 18, N_GROUPS = 6;  // 18 people = 6 groups x 3 replicates: every item gets exactly 3 raters
-const BUDGET = {P0: 120, P1: 120, P2: 300, P3: 1020, P4: 240, E: 120};   // seconds (30 min)
+const BUDGET = {P0: 120, P1: 120, P2: 330, P3: 1020, P4: 300, E: 120};   // seconds (30 min)
 const PART_NAMES = {P0: "Introduction", P1: "Part 1 · Is the step in the text?", P2: "Part 2 · Same or different?",
   P3: "Part 3 · Rank three explanations", P4: "Part 4 · Does each step follow?", E: "Last questions"};
 const OFFSET = {P1: 1, P2: 2, P3: 3, P4: 5};  // replicate r uses group (g + r*OFFSET) % 6: raters mix across parts
@@ -373,7 +373,7 @@ function renderStart(app){
   app.append(h("div", {class: "stack", style: "max-width:720px;margin:0 auto"},
     h("div", {class: "eyebrow"}, "User study · AI reasoning"),
     h("h1", null, "Checking an AI's reasoning"),
-    h("p", {class: "muted"}, "About 30 minutes, in four parts. You will read short statements from an AI's explanations and judge them. You do not need any special knowledge: everything you need is on the screen."),
+    h("p", {class: "muted"}, "About 30–35 minutes, in four parts. You will read short statements from an AI's explanations and judge them. You do not need any special knowledge: everything you need is on the screen."),
     h("p", {class: "notice small"}, "Some questions are based on detective stories that describe fictional murders. There are no graphic details. You can stop at any time."),
     h("div", {class: "card stack"},
       h("div", {class: "eyebrow"}, "Experimenter setup"),
@@ -438,7 +438,7 @@ function rP1(sc){
 
 /* ----- Part 2 */
 function rInstr2(){
-  return instr("P2", 6, "Same or different?", [
+  return instr("P2", 5, "Same or different?", [
     h("p", null, `You will see ${state.sched.P2.length} pairs of steps written by different attempts. For each pair, decide whether they make the same claim.`),
     h("ul", {class: "stack", style: "gap:4px;padding-left:1.3em;margin:0"},
       h("li", null, h("b", null, "Same claim"), ": they say the same thing, even if worded differently."),
@@ -499,7 +499,7 @@ function rP3(sc){
 
 /* ----- Part 4 */
 function rInstr4(){
-  return instr("P4", 4, "Does each step follow?", [
+  return instr("P4", 5, "Does each step follow?", [
     h("p", null, `You will see ${state.sched.P4.length} explanations. For each highlighted step, decide whether it follows from the steps it builds on. Take those earlier steps as true, even if you doubt them: only judge the link.`),
     h("p", null, "Then say whether the explanation as a whole fits together as one argument."),
     h("p", {class: "muted"}, "About 60 seconds per explanation.")],
