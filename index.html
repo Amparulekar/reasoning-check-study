@@ -227,6 +227,7 @@ function buildScreens(){
   let lastCond = null;
   s.P3.forEach((x, k) => { if (x.cond !== lastCond){ out.push({part: "P3", kind: "cond", cond: x.cond, block: x.block}); lastCond = x.cond; }
     out.push({part: "P3", kind: "p3", x, pos: k + 1}); });
+  out.push({part: "P3", kind: "p3rank"});  // after all three formats: the comparison people can only make now
   out.push({part: "P4", kind: "s1"}, {part: "P4", kind: "s2"}, {part: "P4", kind: "s3"}, {part: "P4", kind: "done"});
   return out;
 }
@@ -371,7 +372,7 @@ function render(){
   if (state.view === "start") return renderStart(app);
   const sc = state.screens[state.i];
   app.append(progress());
-  const R = {intro: rIntro, instr1: rInstr1, p1: rP1, instr2: rInstr2, p2: rP2, instr3: rInstr3, cond: rCond, p3: rP3, s1: rS1, s2: rS2, s3: rS3, done: rDone}[sc.kind];
+  const R = {intro: rIntro, instr1: rInstr1, p1: rP1, instr2: rInstr2, p2: rP2, instr3: rInstr3, cond: rCond, p3: rP3, p3rank: rP3Rank, s1: rS1, s2: rS2, s3: rS3, done: rDone}[sc.kind];
   app.append(R(sc));
 }
 function renderPrebar(){
@@ -633,6 +634,24 @@ function rP3(sc){
   return h("div", {class: "p3grid"}, h("div", {class: "stack"}, qhead, refInline(it), view), panel);
 }
 
+const fmtName = c => { const t = COND_INFO[c].title.replace("Format: ", ""); return t[0].toUpperCase() + t.slice(1); };
+function rP3Rank(){
+  const r = surveyState(), order = state.sched.order.split(">");
+  const rk = r.p3_rank || (r.p3_rank = {});
+  const setRank = (c, v) => { for (const k in rk) if (rk[k] === v) delete rk[k]; rk[c] = v; saveLocal(); render(); };
+  const ok = order.every(c => rk[c]) && r.p3_prefer;
+  return h("div", {class: "card stack narrow"}, h("div", {class: "eyebrow"}, "Part 3 · looking back"), h("h2", null, "Now that you have seen all three formats"),
+    h("p", null, "Your earlier answers stay as they are. Here we want your view now, after seeing all three."),
+    h("h3", null, "1. Rank the formats from easiest (1st) to hardest (3rd) for seeing how the AI reached its answer."),
+    ...order.map(c => h("div", {class: "row", style: "justify-content:space-between;border:1px solid var(--line);border-radius:8px;padding:8px 12px"},
+      h("b", null, fmtName(c)),
+      h("div", {class: "row"}, [1, 2, 3].map(v => h("button", {class: "choice", style: "min-height:36px;padding:6px 12px;text-align:center", "aria-pressed": String(rk[c] === v), onclick: () => setRank(c, v)}, ["1st", "2nd", "3rd"][v - 1]))))),
+    h("h3", null, "2. If the answer mattered to you, which would you want to see?"),
+    sChoice("p3_prefer", order.map(c => [c, fmtName(c)]).concat([["none", "None of them: just the answer"]])),
+    h("h3", null, "3. Did any format feel easier or harder than you rated it at the time? How? (optional)"), sText("p3_recal"),
+    footer(ok, ok ? "Next" : "Rank all three and choose one to continue"));
+}
+
 /* ----- Part 4: survey */
 function surveyState(){ return state.resp.P4; }
 function sScale(k, lo, hi){ const r = surveyState(), set = v => { r[k] = v; saveLocal(); render(); };
@@ -752,7 +771,8 @@ function rows(){
       understand: r.understand || "", confidence: r.confidence || "", effort: r.effort || "", n_opened: (r.opened || []).length,
       rt_seconds: sec(r.shown, r.answered), order_position: k + 1}; });
   const v = state.resp.P4 || {};
-  const P4 = [{participant_id: P, slot: S, s1_want: v.s1_want || "", s1_trust: v.s1_trust || "", s1_check: v.s1_check || "",
+  const rk = v.p3_rank || {}, rankStr = Object.keys(rk).sort((a, b) => rk[a] - rk[b]).join(">");
+  const P4 = [{participant_id: P, slot: S, p3_rank_easiest: rankStr, p3_prefer: v.p3_prefer || "", p3_recal: v.p3_recal || "", s1_want: v.s1_want || "", s1_trust: v.s1_trust || "", s1_check: v.s1_check || "",
     s2_helps: v.s2_helps || "", s2_do: v.s2_do || "", s3_help: v.s3_help || "", s3_first: v.s3_first || "", s3_pick: v.s3_pick || "",
     s3_free: v.s3_free || "", field: v.field || "", ai_use: v.ai_use || ""}];
   return {P1, P2, P3, P4};
@@ -760,7 +780,7 @@ function rows(){
 const COLS = {P1: "participant_id,slot,item_id,dataset,step_type,rating,opened_full,is_attention_check,rt_seconds,order_position",
   P2: "participant_id,slot,pair_id,dataset,node_type,swapped,rating,is_attention_check,rt_seconds,order_position",
   P3: "participant_id,slot,item_id,dataset,condition,block,block_order,q1,q2,q1_shown,q2_shown,understand,confidence,effort,n_opened,rt_seconds,order_position",
-  P4: "participant_id,slot,s1_want,s1_trust,s1_check,s2_helps,s2_do,s3_help,s3_first,s3_pick,s3_free,field,ai_use"};
+  P4: "participant_id,slot,p3_rank_easiest,p3_prefer,p3_recal,s1_want,s1_trust,s1_check,s2_helps,s2_do,s3_help,s3_first,s3_pick,s3_free,field,ai_use"};
 const esc = v => { v = v == null ? "" : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
 function toCSV(part, list){ const cols = COLS[part].split(","); return [cols.join(",")].concat(list.map(r => cols.map(c => esc(r[c])).join(","))).join("\n") + "\n"; }
 function participantsCSV(list){ return toCSVcols("participant_id,participant_number,first_name,surname,slot,session_id,started_at,finished_at", list); }
@@ -820,7 +840,7 @@ function walkthrough(n, only){
   const app = $("#app"); app.replaceChildren(h("h1", null, `Walkthrough: participant ${n} (${state.sched.order})`));
   state.screens.forEach((sc, i) => { if (sc.kind === "done" || (only != null && i + 1 !== only)) return; state.i = i;
     app.append(h("hr", {style: "margin:28px 0;border:0;border-top:3px dashed var(--line)"}), h("div", {class: "mono small muted"}, `screen ${i + 1} · ${sc.part} · ${sc.kind}`));
-    const R = {intro: rIntro, instr1: rInstr1, p1: rP1, instr2: rInstr2, p2: rP2, instr3: rInstr3, cond: rCond, p3: rP3, s1: rS1, s2: rS2, s3: rS3}[sc.kind];
+    const R = {intro: rIntro, instr1: rInstr1, p1: rP1, instr2: rInstr2, p2: rP2, instr3: rInstr3, cond: rCond, p3: rP3, p3rank: rP3Rank, s1: rS1, s2: rS2, s3: rS3}[sc.kind];
     const el = R(sc); el.querySelectorAll("details").forEach(d => { if (!d.classList.contains("resp")) d.open = true; }); app.append(el); });
 }
 /* ============================================================ boot (keeps state across a republish) */
