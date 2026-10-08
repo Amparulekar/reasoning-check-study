@@ -451,6 +451,7 @@ function rInstr1(){
   return instr("P1", 2, "Is the step part of the reasoning?", [
     h("p", null, "An AI wrote out its reasoning for a question. A second AI then read that reasoning and pulled short steps out of it. Each step is meant to be a piece of that same reasoning, restated as one sentence. It should not add anything the reasoning did not say."),
     h("p", null, h("b", null, "Your job: "), "check that the step really is part of the reasoning. You see the passage the step most likely came from; you can also open the whole reasoning."),
+    h("p", {class: "notice"}, h("b", null, "The step only has to be a part of the reasoning. "), "The reasoning will almost always say more than the step; that is fine and expected. Check only that everything the step says is also in the reasoning."),
     h("ul", {class: "stack", style: "gap:4px;padding-left:1.3em;margin:0"},
       h("li", null, h("b", null, "Yes"), " if the reasoning says what the step says, even in other words."),
       h("li", null, h("b", null, "Partly"), " if the reasoning says some of it, but the step adds or changes something (a different number, an extra claim)."),
@@ -477,6 +478,7 @@ function rP1(sc){
     full,
     keyBox(it.is_attention_check ? `ATTENTION CHECK, expected ${it.expected}` : `${it.dataset}, trace ${it.trace || ""}, stated by ${it.n_attest || "?"}/12`),
     h("h3", null, "Is this step part of the reasoning?"),
+    h("p", {class: "small muted"}, "The reasoning may say more than the step. Check only that everything in the step is also in the reasoning."),
     choices(P1_OPTIONS, r.rating, pick),
     h("div", {class: "foot"}, h("span", {class: "hint"}, PART_NAMES.P1), h("div", {class: "row"}, backButton(), r.rating ? h("button", {onclick: next}, "Next") : null)));
 }
