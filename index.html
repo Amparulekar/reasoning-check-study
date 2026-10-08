@@ -336,7 +336,14 @@ function referencePanel(item){
 }
 function keyBox(lines){ return state.preview && state.showKey ? h("div", {class: "key"}, h("b", null, "Author key (preview only): "), lines) : null; }
 function progress(){ const n = state.screens.length; return h("div", {class: "progress", "aria-hidden": "true"}, h("i", {style: `width:${Math.round(100 * state.i / Math.max(1, n - 1))}%`})); }
-function canBack(){ return state.i > 0 && state.screens[state.i].kind !== "done" && state.screens[state.i - 1].part === state.screens[state.i].part; }
+// Back works across parts, but never into an earlier Part 3 format block: answers given in one format must not be
+// revised after seeing a later format (that would undo the counterbalanced format order).
+const blockOf = sc => sc.kind === "cond" ? sc.block : sc.kind === "p3" ? sc.x.block : null;
+function canBack(){
+  if (state.i <= 0 || state.screens[state.i].kind === "done") return false;
+  const a = blockOf(state.screens[state.i - 1]), b = blockOf(state.screens[state.i]);
+  return !(a != null && b != null && a !== b);
+}
 function back(){ if (canBack()){ logEv("back", {from: state.screens[state.i].kind}); go(state.i - 1); } }
 function backButton(){ return canBack() ? h("button", {id: "back", onclick: back}, "← Back") : null; }
 function footer(canNext, label){
@@ -442,7 +449,7 @@ function rIntro(){
       h("li", null, "Check whether two steps make the same claim (5 minutes)."),
       h("li", null, "Look at how the AI reached its answer, shown in three different ways, and answer questions about it (18 minutes)."),
       h("li", null, "A short survey about when you would want to see an AI's reasoning (5 minutes).")),
-    h("p", {class: "muted"}, "You can use Back to change an answer within a part, but not to return to an earlier part. There are no trick questions."),
+    h("p", {class: "muted"}, "You can use Back to go back and change an answer at any point, except to an earlier format in Part 3. There are no trick questions."),
     footer(true, "Start Part 1"));
 }
 
@@ -541,7 +548,7 @@ function rInstr3(sc){
       h("p", {class: "small"}, "Does Alice owe $14,836 in tax? 8 attempts say yes: the tax comes to $14,835.76. 4 say no: they work out 28% of $33,217 as $9,338.16."),
       h("p", {class: "small"}, h("b", null, "1."), " Most relied on: the tax comes to about $14,836. ", h("b", null, "2."), " The others split off by miscalculating 28% of $33,217.")),
     h("p", null, "Then rate how well you understand it, how sure you are the answer is right, and how hard it was."),
-    h("p", {class: "muted"}, "About 3 minutes per question. The questions stay on the right while you look at the reasoning."),
+    h("p", {class: "muted"}, "About 3 minutes per question. The questions stay on the right while you look at the reasoning. Back works within a format, but not to an earlier format."),
     sc.warn ? h("p", {class: "notice small"}, "Some stories describe fictional murders. There are no graphic details.") : null], null, "Begin Part 3");
 }
 function rCond(sc){
