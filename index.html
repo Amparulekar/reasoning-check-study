@@ -63,6 +63,15 @@ textarea{width:100%;min-height:96px}
 .bar{display:inline-flex;gap:2px}.bar i{width:7px;height:10px;border-radius:2px;background:var(--line)}.bar i.on{background:var(--accent)}
 .otherline{border:1px dashed var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
 .qcard h3{font-size:1rem}
+.p3grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);gap:20px;align-items:start}
+.p3grid>*{min-width:0}
+.qpanel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);max-height:calc(100vh - 24px);overflow:auto}
+.rgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.rgrid>*{min-width:0}
+.rgrid .resp[open]{grid-column:1/-1}  /* opened text uses the full width */
+.chip{display:inline-block;padding:1px 9px;border-radius:999px;background:var(--accent-soft);font-weight:700;font-size:.9rem}
+.legend{font-size:.85rem;color:var(--muted)}
+@media (max-width:980px){.p3grid{grid-template-columns:minmax(0,1fr)}.qpanel{position:static;max-height:none}.rgrid{grid-template-columns:minmax(0,1fr)}}
 .scen{border-left:4px solid var(--accent);padding:12px 14px;background:var(--accent-soft);border-radius:0 8px 8px 0}
 .law{white-space:pre-wrap;font-size:.92rem;line-height:1.5;border-left:3px solid var(--line);padding-left:10px}
 .story{white-space:pre-wrap;font-size:.92rem;border-left:3px solid var(--line);padding-left:10px}
@@ -500,27 +509,37 @@ function rP2(sc){
 
 /* ----- Part 3: interpretability (three formats) */
 const COND_INFO = {
-  debate: {title: "Format: a debate between AI agents",
-    text: ["Four AI agents discussed the question over three rounds. In each round every agent gives an answer, how confident it is (0 to 1), and an explanation; from round 2 on, the agents have read each other's previous answers.",
-           "Click an agent's line to read what it wrote. The final answer is the one the agents settle on."]},
-  vote: {title: "Format: 12 separate attempts and their vote",
-    text: ["The AI answered the question 12 separate times, without seeing its other attempts. You see each attempt's answer and the vote count.",
-           "Click an attempt to read its reasoning. The final answer is the one most attempts gave."]},
-  graph: {title: "Format: a combined summary of 12 attempts",
-    text: ["The AI answered the question 12 separate times, and their reasoning was combined into one summary. Each step shows how many of the 12 attempts stated it, and a small diagram shows which steps build on which.",
-           "Below it you see the reasoning behind the other answer some attempts gave. The final answer is the one most attempts gave."]}};
+  debate: {title: "Format: a debate between AI agents", short: "Debate",
+    text: ["Four AI agents discussed the question in three rounds. In each round, every agent gives an answer and how confident it is (0 to 1). From round 2, they have read each other's answers.",
+           "Click an agent to read what it wrote."]},
+  vote: {title: "Format: 12 attempts and their vote", short: "12 attempts",
+    text: ["The AI answered the question 12 times, separately. You see each attempt's answer and the vote count.",
+           "Click an attempt to read its reasoning."]},
+  graph: {title: "Format: a combined summary of 12 attempts", short: "Combined summary",
+    text: ["The AI answered the question 12 times, separately, and the reasoning was combined into one summary.",
+           "Each step shows how many of the 12 attempts said it. Below it you see the reasoning behind the other answer."]}};
+function shortAns(it, label){  // short plain labels for lists; the full meaning is given once at the top
+  const L = String(label);
+  if (it.dataset === "sara") return {ENTAILED: "Supports", CONTRADICTED: "Contradicts"}[L] || L;
+  if (it.dataset === "folio") return {TRUE: "True", FALSE: "False", UNCERTAIN: "Can't tell"}[L] || L;
+  const t = optText(it, L); return t ? `${L}. ${t.length > 42 ? t.slice(0, 40) + "…" : t}` : L;
+}
+function legend(it){
+  if (it.dataset === "sara") return "Supports / Contradicts = whether the law supports or contradicts the statement.";
+  if (it.dataset === "folio") return "True / False / Can't tell = whether the conclusion follows from the premises.";
+  return null;
+}
 function rInstr3(sc){
   return instr("P3", 18, "How did the AI reach its answer?", [
-    h("p", null, `You will see ${state.sched.P3.length} questions. For each, you see how an AI reached its answer, shown in one of three formats (two questions per format). Then you answer a few questions about how it got there.`),
-    h("p", null, "You do not need to solve the questions yourself, and you do not need to read everything: look at whatever helps you answer these two questions, which are the same every time:"),
+    h("p", null, `You will see ${state.sched.P3.length} questions, each shown in one of three formats. `, h("b", null, "You don't need to solve them or read everything."), " Look at whatever helps you answer two questions, which are the same every time:"),
     h("ol", {class: "stack", style: "gap:4px;padding-left:1.3em;margin:0"},
-      h("li", null, h("b", null, "Which point did most of the AI's attempts or agents rely on?"), " Several points may appear in the reasoning; pick the one that most of them used to reach the answer."),
-      h("li", null, h("b", null, "Where did the ones that disagreed go a different way?"), " Some attempts or agents argued for another answer; pick the step where their reasoning split off.")),
+      h("li", null, h("b", null, "Which point did most of the AI's attempts or agents rely on?")),
+      h("li", null, h("b", null, "Where did the ones that disagreed go a different way?"))),
     h("div", {class: "example"}, h("div", {class: "eyebrow"}, "Example"),
-      h("p", {class: "small"}, "Question: does Alice owe $14,836 in tax? Eight attempts say yes: her income of $70,117 falls in the 28% bracket and the tax comes to $14,835.76, which rounds to $14,836. Four say no, because they compute 28% of $33,217 as $9,338.16."),
-      h("p", {class: "small"}, h("b", null, "1."), " The point most relied on: the tax comes to about $14,836 under the 28% bracket. ", h("b", null, "2."), " Where the others split off: they miscalculated 28% of $33,217.")),
-    h("p", null, "Then you rate how well you understand how the AI got its answer, how sure you are the answer is right, and how hard it was to find what you needed."),
-    h("p", {class: "muted"}, "About 3 minutes per question. Each format is explained before its two questions."),
+      h("p", {class: "small"}, "Does Alice owe $14,836 in tax? 8 attempts say yes: the tax comes to $14,835.76. 4 say no: they work out 28% of $33,217 as $9,338.16."),
+      h("p", {class: "small"}, h("b", null, "1."), " Most relied on: the tax comes to about $14,836. ", h("b", null, "2."), " The others split off by miscalculating 28% of $33,217.")),
+    h("p", null, "Then rate how well you understand it, how sure you are the answer is right, and how hard it was."),
+    h("p", {class: "muted"}, "About 3 minutes per question. The questions stay on the right while you look at the reasoning."),
     sc.warn ? h("p", {class: "notice small"}, "Some stories describe fictional murders. There are no graphic details.") : null], null, "Begin Part 3");
 }
 function rCond(sc){
@@ -528,28 +547,32 @@ function rCond(sc){
   return h("div", {class: "card stack narrow"}, h("div", {class: "eyebrow"}, `Part 3 · format ${sc.block} of 3`), h("h2", null, ci.title),
     ...ci.text.map(t => h("p", null, t)), footer(true, "Show the questions"));
 }
-function supportBar(n){ return h("span", {class: "supp"}, h("span", {class: "bar", "aria-hidden": "true"}, Array.from({length: 12}, (_, i) => h("i", {class: i < n ? "on" : ""}))), `stated by ${n} of 12 attempts`); }
+function supportBar(n){ return h("span", {class: "supp"}, h("span", {class: "bar", "aria-hidden": "true"}, Array.from({length: 12}, (_, i) => h("i", {class: i < n ? "on" : ""}))), `said by ${n} of 12 attempts`); }
 function respRow(head, text, onOpen){
   const d = h("details", {class: "resp"}, h("summary", null, ...head), h("div", {class: "body"}, text || "(no text)"));
   d.addEventListener("toggle", () => { if (d.open) onOpen(); });
   return d;
 }
+function answerHead(it, label, extra){
+  return h("div", {class: "answerbox"}, h("span", {class: "small"}, "The AI's answer"), h("b", null, shortAns(it, label)), extra ? h("span", {class: "small muted"}, extra) : null);
+}
 function viewDebate(it, onOpen){
   const d = it.debate;
   return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "Debate between 4 AI agents"),
+    answerHead(it, d.final_answer, "after the debate"),
+    legend(it) ? h("p", {class: "legend"}, legend(it)) : null,
     ...d.rounds.map(rd => h("div", {class: "round"}, h("h3", null, `Round ${rd.round}`),
-      ...rd.responses.map(x => respRow([h("b", null, x.agent), h("span", {class: "ansb"}, `answer ${answerLine(it, x.answer)}`), x.confidence != null ? h("span", {class: "conf"}, `confidence ${x.confidence}`) : null],
-        x.text, () => onOpen(`r${rd.round}:${x.agent}`))))),
-    h("div", {class: "answerbox"}, h("span", {class: "small"}, "Final answer after the debate"), h("b", null, answerLine(it, d.final_answer))));
+      h("div", {class: "rgrid"}, ...rd.responses.map(x => respRow([h("b", null, x.agent), h("span", {class: "chip"}, shortAns(it, x.answer)),
+        x.confidence != null ? h("span", {class: "conf"}, `conf. ${x.confidence}`) : null], x.text, () => onOpen(`r${rd.round}:${x.agent}`)))))));
 }
 function tally(it){ const c = {}; it.attempts.forEach(a => c[a.answer] = (c[a.answer] || 0) + 1);
-  return Object.entries(c).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${answerLine(it, k)}: ${n}`).join(" · "); }
+  return Object.entries(c).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${shortAns(it, k)}: ${n}`).join(" · "); }
 function viewVote(it, onOpen){
   const n = it.attempts.filter(a => a.answer === it.answer).length;
   return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "12 separate attempts"),
-    h("div", {class: "answerbox"}, h("span", {class: "small"}, "Most common answer"), h("b", null, answerLine(it, it.answer)), h("span", {class: "small muted"}, `${n} of ${it.attempts.length} attempts`)),
-    h("p", {class: "small muted"}, "Votes: " + tally(it)),
-    h("div", {class: "round"}, ...it.attempts.map(a => respRow([h("b", null, `Attempt ${a.attempt}`), h("span", {class: "ansb"}, `answer ${answerLine(it, a.answer)}`)], a.text, () => onOpen(`a${a.attempt}`)))));
+    answerHead(it, it.answer, `${n} of ${it.attempts.length} attempts`),
+    h("p", {class: "small"}, h("b", null, "Votes: "), tally(it)), legend(it) ? h("p", {class: "legend"}, legend(it)) : null,
+    h("div", {class: "rgrid"}, ...it.attempts.map(a => respRow([h("b", null, `Attempt ${a.attempt}`), h("span", {class: "chip"}, shortAns(it, a.answer))], a.text, () => onOpen(`a${a.attempt}`)))));
 }
 function supportSteps(steps){ return h("ol", {class: "steps"}, steps.map(s => h("li", {class: "step"}, h("span", {class: "n"}, s.id + "."),
   h("span", {class: "t"}, h("span", {class: "tag " + s.type}, s.type), s.text,
@@ -557,11 +580,23 @@ function supportSteps(steps){ return h("ol", {class: "steps"}, steps.map(s => h(
 function viewGraph(it){
   const g = it.graph, c = g.competing;
   return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "Combined summary of 12 attempts"),
-    h("div", {class: "answerbox"}, h("span", {class: "small"}, "Answer"), h("b", null, answerLine(it, g.answer)), h("span", {class: "small muted"}, `${g.votes} of 12 attempts`)),
+    answerHead(it, g.answer, `${g.votes} of 12 attempts`), legend(it) ? h("p", {class: "legend"}, legend(it)) : null,
     lineGraph(g.steps), supportSteps(g.steps),
     h("div", {class: "otherline"}, h("div", {class: "row", style: "justify-content:space-between"},
-      h("div", null, h("div", {class: "eyebrow"}, "The other answer some attempts gave"), h("b", null, answerLine(it, c.answer))), h("span", {class: "small muted"}, `${c.votes} of 12 attempts`)),
+      h("div", null, h("div", {class: "eyebrow"}, "The other answer some attempts gave"), h("b", null, shortAns(it, c.answer))), h("span", {class: "small muted"}, `${c.votes} of 12 attempts`)),
       lineGraph(c.steps), supportSteps(c.steps)));
+}
+function refInline(it){  // the question's material, above the reasoning; long stories start closed
+  const ref = it.reference || {};
+  if (ref.kind === "mc") return null;
+  const box = (title, open, ...kids) => h("details", {class: "card", open: open || null}, h("summary", {style: "cursor:pointer;font-weight:700"}, title), h("div", {class: "refbody"}, ...kids));
+  if (ref.kind === "sara") return box("The law", true, lawBlock(ref), calculator());
+  if (ref.kind === "folio") return box("Premises (take these as true)", true, h("ol", null, ref.premises.map(p => h("li", null, p))));
+  if (ref.kind === "musr") return box("The story (summary)", false,
+    ref.content_warning ? h("p", {class: "notice small"}, "This story describes a fictional murder. There are no graphic details.") : null,
+    ref.summary ? h("p", {class: "story", style: "border:0;padding:0"}, ref.summary) : null,
+    h("details", null, h("summary", {class: "quiet", style: "cursor:pointer;color:var(--accent)"}, "Show the full story"), h("p", {class: "story"}, ref.story)));
+  return null;
 }
 function rP3(sc){
   const {item: it, cond, q1, q2} = sc.x, id = it.item_id;
@@ -572,22 +607,21 @@ function rP3(sc){
     h("div", {class: "row small muted", style: "justify-content:space-between"}, h("span", null, lo), h("span", null, hi)));
   const ok = r.q1 && r.q2 && r.understand && r.confidence && r.effort;
   const view = cond === "debate" ? viewDebate(it, onOpen) : cond === "vote" ? viewVote(it, onOpen) : viewGraph(it);
-  const ref = referencePanel(it);  // medical questions have none: use the full width
-  return h("div", {class: ref ? "grid" : "stack", style: ref ? null : "max-width:860px;margin:0 auto"},
-    h("div", {class: "stack"},
-      h("div", {class: "card stack"}, h("span", {class: "eyebrow"}, `Question ${sc.pos} of ${state.sched.P3.length} · ${COND_INFO[cond].title.replace("Format: ", "")}`), questionBox(it),
-        keyBox(`${it.dataset}, ${cond}; correct: Q1 ${(q1.find(o => o.correct) || {}).key || "(public build)"}, Q2 ${(q2.find(o => o.correct) || {}).key || ""}; answer ${it.answer_correct ? "correct" : "wrong"}`)),
-      view,
-      h("div", {class: "card stack qcard"},
-        h("h3", null, "1. Which of these points did most of the AI's attempts or agents rely on to reach the answer?"),
-        choices(q1.map(o => [o.key, o.text]), r.q1, v => set("q1", v)),
-        h("h3", null, "2. Some attempts or agents argued for a different answer. Which point best captures where their reasoning went a different way?"),
-        choices(q2.map(o => [o.key, o.text]), r.q2, v => set("q2", v)),
-        h("h3", null, "3. I understand how the AI reached its answer."), scale("understand", "strongly disagree", "strongly agree"),
-        h("h3", null, "4. How sure are you that the AI's answer is right?"), scale("confidence", "not at all sure", "completely sure"),
-        h("h3", null, "5. How hard was it to find what you needed?"), scale("effort", "very easy", "very hard"),
-        footer(ok, ok ? "Next" : "Answer all five to continue"))),
-    ref);
+  const ref = it.reference || {};
+  const qhead = h("div", {class: "card stack"}, h("span", {class: "eyebrow"}, `Question ${sc.pos} of ${state.sched.P3.length} · ${COND_INFO[cond].short}`),
+    ref.kind === "sara" ? h("div", {class: "stack", style: "gap:6px"}, h("p", null, h("b", null, "Case: "), ref.case), h("p", null, h("b", null, "Statement: "), ref.statement),
+      h("p", {class: "small muted"}, "Does the law support or contradict the statement?")) : questionBox(it),
+    keyBox(`${it.dataset}, ${cond}; correct: Q1 ${(q1.find(o => o.correct) || {}).key || "(public build)"}, Q2 ${(q2.find(o => o.correct) || {}).key || ""}; answer ${it.answer_correct ? "correct" : "wrong"}`));
+  const panel = h("div", {class: "card stack qcard qpanel"},
+    h("h3", null, "1. Which point did most of the AI's attempts or agents rely on?"),
+    choices(q1.map(o => [o.key, o.text]), r.q1, v => set("q1", v)),
+    h("h3", null, "2. Where did the ones that disagreed go a different way?"),
+    choices(q2.map(o => [o.key, o.text]), r.q2, v => set("q2", v)),
+    h("h3", null, "3. I understand how the AI reached its answer."), scale("understand", "disagree", "agree"),
+    h("h3", null, "4. How sure are you that the AI's answer is right?"), scale("confidence", "not sure", "completely sure"),
+    h("h3", null, "5. How hard was it to find what you needed?"), scale("effort", "very easy", "very hard"),
+    footer(ok, ok ? "Next" : "Answer all five to continue"));
+  return h("div", {class: "p3grid"}, h("div", {class: "stack"}, qhead, refInline(it), view), panel);
 }
 
 /* ----- Part 4: survey */
