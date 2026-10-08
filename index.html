@@ -131,7 +131,7 @@ function loadItems(){  // the public build stores the items base64-encoded (not 
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 let DATA = loadItems();
-const SUBMIT_URL = "";  // Google Apps Script web app that appends answers to the study's Sheet
+const SUBMIT_URL = "https://script.google.com/macros/s/AKfycby4HoEizH3ptkCLovGY0JHLI8MAZBXqj6qaJ2pMl-4gwnWh0uMI9abSz0Gb7Hr6VBCoRQ/exec";  // Google Apps Script web app that appends answers to the study's Sheet
 const N_SLOTS = 18, N_GROUPS = 6;  // 18 people = 6 groups x 3 replicates: every Part 1-2 item gets exactly 3 raters
 const BUDGET = {P0: 90, P1: 150, P2: 300, P3: 1080, P4: 300};   // seconds (about 32 min)
 const PART_NAMES = {P0: "Introduction", P1: "Part 1 · Is the step part of the reasoning?", P2: "Part 2 · Same claim or not?",
