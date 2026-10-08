@@ -451,7 +451,7 @@ function renderStart(app){
 function rIntro(){
   return h("div", {class: "card stack narrow"},
     h("h2", null, "How this works"),
-    h("p", null, "We asked an AI system each question several times. Every attempt wrote out its reasoning in its own words and gave an answer. We then turned the reasoning into short numbered steps, and combined the steps from all the attempts into one summary."),
+    h("p", null, "We asked an AI system each question several times. Every attempt wrote out its reasoning in its own words and gave an answer. We then turned the reasoning into short numbered steps, and combined the steps from all the attempts into one graph."),
     h("p", null, "Steps have a label:"),
     h("ul", {class: "steps"}, ["Fact", "Reasoning", "Conclusion"].map(t => h("li", {class: "step", style: "grid-template-columns:minmax(0,1fr)"},
       h("span", null, h("span", {class: "tag " + t}, t), {Fact: "something taken from the question", Reasoning: "a step that works something out", Conclusion: "the step that reaches the answer"}[t])))),
@@ -530,15 +530,15 @@ function rP2(sc){
 
 /* ----- Part 3: interpretability (three formats) */
 const COND_INFO = {
-  debate: {title: "Format: a debate between AI systems", short: "Debate",
-    text: ["Four AI systems discussed the question in three rounds. In each round, every agent gives an answer and how confident it is (0 to 1). From round 2, they have read each other's answers.",
+  debate: {title: "Format: a debate between LLMs", short: "Debate",
+    text: ["Four different LLMs discussed the question in three rounds. In each round, every LLM gives an answer and how confident it is (0 to 1). From round 2, they have read each other's answers.",
            "Click an agent to read what it wrote."]},
   vote: {title: "Format: 12 attempts and their vote", short: "12 attempts",
-    text: ["The AI system answered the question 12 times, separately. You see each attempt's answer and the vote count.",
+    text: ["Four different LLMs each answered the question 3 times, separately: 12 attempts. You see each attempt's answer and the vote count.",
            "Click an attempt to read its reasoning."]},
-  graph: {title: "Format: a combined summary of 12 attempts", short: "Combined summary",
-    text: ["The AI system answered the question 12 times, separately, and the reasoning was combined into one summary.",
-           "Each step shows how many of the 12 attempts said it. Below it you see the reasoning behind the other answer."]}};
+  graph: {title: "Format: a graph of the 12 attempts with each step's support", short: "Graph with support counts",
+    text: ["Four different LLMs each answered the question 3 times, separately: 12 attempts. Their reasoning was combined into one graph of steps.",
+           "Each step shows how many of the 12 attempts stated it, and a small diagram shows which steps build on which. Below it you see the reasoning behind the other answer."]}};
 function shortAns(it, label){  // short plain labels for lists; the full meaning is given once at the top
   const L = String(label);
   if (it.dataset === "sara") return {ENTAILED: "Supports", CONTRADICTED: "Contradicts"}[L] || L;
@@ -579,7 +579,7 @@ function answerHead(it, label, extra){
 }
 function viewDebate(it, onOpen){
   const d = it.debate;
-  return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "Debate between 4 AI systems"),
+  return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "Debate between 4 LLMs"),
     answerHead(it, d.final_answer, "after the debate"),
     legend(it) ? h("p", {class: "legend"}, legend(it)) : null,
     ...d.rounds.map(rd => h("div", {class: "round"}, h("h3", null, `Round ${rd.round}`),
@@ -600,7 +600,7 @@ function supportSteps(steps){ return h("ol", {class: "steps"}, steps.map(s => h(
     s.uses && s.uses.length ? h("span", {class: "uses"}, `builds on step${s.uses.length > 1 ? "s" : ""} ${s.uses.join(", ")}`) : null, supportBar(s.support_n))))); }
 function viewGraph(it){
   const g = it.graph, c = g.competing;
-  return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "Combined summary of 12 attempts"),
+  return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "Graph of the 12 attempts, with each step's support"),
     answerHead(it, g.answer, `${g.votes} of 12 attempts`), legend(it) ? h("p", {class: "legend"}, legend(it)) : null,
     lineGraph(g.steps), supportSteps(g.steps),
     h("div", {class: "otherline"}, h("div", {class: "row", style: "justify-content:space-between"},
@@ -708,7 +708,7 @@ function rS3(){
   const sel = (k, opts) => h("select", {id: "sel-" + k, onchange: e => { r[k] = e.target.value; saveLocal(); render(); }}, h("option", {value: ""}, "Choose…"), opts.map(o => h("option", {value: o, selected: r[k] === o}, o)));
   return h("div", {class: "stack", style: "max-width:1000px;margin:16px auto"},
     h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "Part 4 · Your view · 3 of 3"), h("h2", null, "A picture of who agrees with what"),
-      h("p", null, "Here is the kind of summary you saw in Part 3, drawn as a picture, for a tax question where 12 attempts by an AI system split 6 to 6 between two answers."),
+      h("p", null, "Here is the kind of graph you saw in Part 3, drawn in full, for a tax question where 12 attempts split 6 to 6 between two answers."),
       DATA.figure ? h("div", {class: "figure"}, h("img", {src: DATA.figure, alt: "12 attempts split 6 to 6. On the left a graph of all 41 steps; on the right the steps behind each answer, each with how many attempts stated it."})) : null,
       h("ul", {class: "stack small", style: "gap:4px;padding-left:1.3em;margin:0"},
         h("li", null, "Green is the reasoning behind one answer, orange the reasoning behind the other; grey steps are shared by both."),
@@ -747,7 +747,7 @@ function rDone(){
   const copy = h("button", {class: "quiet", onclick: async () => { try { await navigator.clipboard.writeText(t); copy.textContent = "Copied"; } catch (_) { area.focus(); area.select(); copy.textContent = "Selected: press Ctrl/Cmd+C"; } }}, "Copy");
   return h("div", {class: "stack narrow"},
     h("div", {class: "card stack"}, h("h2", null, "Thank you!"), status,
-      h("p", null, "This study looks at a way of combining many attempts by an AI system into one summary of their reasoning. You checked whether its steps really come from the attempts (Part 1) and whether it merges only steps that say the same thing (Part 2), compared how easy it is to see how an answer was reached in three formats (Part 3), and told us when you would want to see an AI system's reasoning (Part 4)."),
+      h("p", null, "This study looks at a way of combining many LLM attempts into one graph of their reasoning, with a support count for each step. You checked whether its steps really come from the attempts (Part 1) and whether it merges only steps that say the same thing (Part 2), compared how easy it is to see how an answer was reached in a debate, a vote and the graph (Part 3), and told us when you would want to see an AI system's reasoning (Part 4)."),
       h("p", {class: "muted"}, "Please don't discuss the questions with other participants until everyone has taken part.")),
     h("div", {class: "card stack"}, h("div", {class: "row", style: "justify-content:space-between"}, h("b", null, "Your answers (a copy, in case sending did not work)"), copy), area));
 }
