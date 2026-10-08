@@ -337,14 +337,10 @@ function referencePanel(item){
 }
 function keyBox(lines){ return state.preview && state.showKey ? h("div", {class: "key"}, h("b", null, "Author key (preview only): "), lines) : null; }
 function progress(){ const n = state.screens.length; return h("div", {class: "progress", "aria-hidden": "true"}, h("i", {style: `width:${Math.round(100 * state.i / Math.max(1, n - 1))}%`})); }
-// Back works across parts, but never into an earlier Part 3 format block: answers given in one format must not be
-// revised after seeing a later format (that would undo the counterbalanced format order).
+// Back works everywhere (user, 8 Oct). A Part 3 answer changed after a later format was reached is flagged
+// (revised_late), so results can be reported with and without such revisions.
 const blockOf = sc => sc.kind === "cond" ? sc.block : sc.kind === "p3" ? sc.x.block : null;
-function canBack(){
-  if (state.i <= 0 || state.screens[state.i].kind === "done") return false;
-  const a = blockOf(state.screens[state.i - 1]), b = blockOf(state.screens[state.i]);
-  return !(a != null && b != null && a !== b);
-}
+function canBack(){ return state.i > 0; }
 function back(){ if (canBack()){ logEv("back", {from: state.screens[state.i].kind}); go(state.i - 1); } }
 function backButton(){ return canBack() ? h("button", {id: "back", onclick: back}, "← Back") : null; }
 function footer(canNext, label){
@@ -361,7 +357,8 @@ function instr(part, mins, title, paras, example, cta){
 
 /* ============================================================ navigation + timing */
 function tickPart(){ const sc = state.screens[state.i]; if (!sc || !state.shownAt) return; state.partTime[sc.part] = (state.partTime[sc.part] || 0) + (now() - state.shownAt) / 1000; state.shownAt = now(); }
-function go(i){ tickPart(); state.i = Math.max(0, Math.min(state.screens.length - 1, i)); state.shownAt = now(); logEv("screen_shown", {kind: state.screens[state.i].kind}); saveLocal(); render(); window.scrollTo(0, 0); }
+function go(i){ tickPart(); state.i = Math.max(0, Math.min(state.screens.length - 1, i));
+  const b = blockOf(state.screens[state.i]); if (b != null) state.maxBlock = Math.max(state.maxBlock || 0, b); state.shownAt = now(); logEv("screen_shown", {kind: state.screens[state.i].kind}); saveLocal(); render(); window.scrollTo(0, 0); }
 function next(){ go(state.i + 1); }
 function autoNext(first){ if (first) setTimeout(() => { if (state.view === "study") next(); }, 220); }
 
@@ -424,7 +421,7 @@ function renderStart(app){
     state.slot = okN ? n : 1; state.pid = `P${String(state.slot).padStart(2, "0")}`; state.preview = prev.checked;
     state.sched = schedule(state.slot); state.screens = buildScreens(); state.i = 0; state.view = "study";
     state.resp = {P1: {}, P2: {}, P3: {}, P4: {}}; state.partTime = {}; state.log = []; state.submitted = false; state.finishedAt = null;
-    state.sent = false; state.sendTried = false;
+    state.sent = false; state.sendTried = false; state.sentRows = null; state.maxBlock = 0;
     state.startedAt = new Date().toISOString(); state.sessionId = `${state.pid}-s${state.slot}-${Date.now().toString(36)}`; state.shownAt = now();
     logEv("session_started", {slot: state.slot, preview: state.preview}); saveLocal(); render();
   };
@@ -464,7 +461,7 @@ function rIntro(){
       h("li", null, "Check whether two steps make the same claim (5 minutes)."),
       h("li", null, "Look at how the AI system reached its answer, shown in three different ways, and answer questions about it (18 minutes)."),
       h("li", null, "A short survey about when you would want to see an AI system's reasoning (5 minutes).")),
-    h("p", {class: "muted"}, "You can use Back to go back and change an answer at any point, except to an earlier format in Part 3. There are no trick questions."),
+    h("p", {class: "muted"}, "You can use Back at any point to change an answer. There are no trick questions."),
     footer(true, "Start Part 1"));
 }
 
@@ -563,7 +560,7 @@ function rInstr3(sc){
       h("p", {class: "small"}, "Does Alice owe $14,836 in tax? 8 attempts say yes: the tax comes to $14,835.76. 4 say no: they work out 28% of $33,217 as $9,338.16."),
       h("p", {class: "small"}, h("b", null, "1."), " Most relied on: the tax comes to about $14,836. ", h("b", null, "2."), " The others split off by miscalculating 28% of $33,217.")),
     h("p", null, "Then rate how well you understand it, how sure you are the answer is right, and how hard it was."),
-    h("p", {class: "muted"}, "About 3 minutes per question. The questions stay on the right while you look at the reasoning. Back works within a format, but not to an earlier format."),
+    h("p", {class: "muted"}, "About 3 minutes per question. The questions stay on the right while you look at the reasoning."),
     sc.warn ? h("p", {class: "notice small"}, "Some stories describe fictional murders. There are no graphic details.") : null], null, "Begin Part 3");
 }
 function rCond(sc){
@@ -626,7 +623,8 @@ function refInline(it){  // the question's material, above the reasoning; long s
 function rP3(sc){
   const {item: it, cond, q1, q2} = sc.x, id = it.item_id;
   const r = state.resp.P3[id] || (state.resp.P3[id] = {item_id: id, cond, shown: now(), opened: []});
-  const set = (k, v) => { r[k] = v; r.answered = now(); logEv("P3_" + k, {item: id, value: v}); saveLocal(); render(); };
+  const set = (k, v) => { if (r[k] != null && r[k] !== v && (state.maxBlock || 0) > sc.x.block) r.revised_late = true;
+    r[k] = v; r.answered = now(); logEv("P3_" + k, {item: id, value: v}); saveLocal(); render(); };
   const onOpen = tag => { if (!r.opened.includes(tag)){ r.opened.push(tag); saveLocal(); } logEv("P3_open", {item: id, what: tag}); };
   const scale = (k, lo, hi) => h("div", {class: "stack", style: "gap:4px"}, h("div", {class: "scale"}, [1, 2, 3, 4, 5].map(v => h("button", {class: "choice", "aria-pressed": String(r[k] === v), onclick: () => set(k, v)}, h("b", null, v)))),
     h("div", {class: "row small muted", style: "justify-content:space-between"}, h("span", null, lo), h("span", null, hi)));
@@ -740,8 +738,10 @@ function rDone(){
     try { await sendToSheet(); state.sent = true; saveLocal(); status.textContent = "Your answers were sent. Thank you!"; }
     catch (e) { status.textContent = "Your answers could not be sent. Please copy them below and send them to the organizer."; }
   };
-  if (!state.sent && !state.sendTried){ state.sendTried = true; saveLocal(); setTimeout(send, 50); }
-  const p = payload(); delete p.log;
+  const p = payload(); delete p.log; delete p.finished_at;
+  const t0 = JSON.stringify(p.rows);  // what was answered; a change after going back is sent again
+  if (state.sentRows !== t0){ state.sentRows = t0; state.sent = false; saveLocal(); setTimeout(send, 50); }
+  p.finished_at = state.finishedAt;
   const t = JSON.stringify(p);
   const area = h("textarea", {class: "csvbox", id: "answers", readonly: true, "aria-label": "Your answers", style: "min-height:140px"}, t);
   const copy = h("button", {class: "quiet", onclick: async () => { try { await navigator.clipboard.writeText(t); copy.textContent = "Copied"; } catch (_) { area.focus(); area.select(); copy.textContent = "Selected: press Ctrl/Cmd+C"; } }}, "Copy");
@@ -766,6 +766,7 @@ function rows(){
     return {participant_id: P, slot: S, item_id: it.item_id, dataset: it.dataset, condition: x.cond, block: x.block, block_order: state.sched.order,
       q1: r.q1 || "", q2: r.q2 || "", q1_shown: x.q1.map(o => o.key).join(">"), q2_shown: x.q2.map(o => o.key).join(">"),
       understand: r.understand || "", confidence: r.confidence || "", effort: r.effort || "", n_opened: (r.opened || []).length,
+      revised_late: r.revised_late ? 1 : 0,
       rt_seconds: sec(r.shown, r.answered), order_position: k + 1}; });
   const v = state.resp.P4 || {};
   const rk = v.p3_rank || {}, rankStr = Object.keys(rk).sort((a, b) => rk[a] - rk[b]).join(">");
@@ -776,7 +777,7 @@ function rows(){
 }
 const COLS = {P1: "participant_id,slot,item_id,dataset,step_type,rating,opened_full,is_attention_check,rt_seconds,order_position",
   P2: "participant_id,slot,pair_id,dataset,node_type,swapped,rating,is_attention_check,rt_seconds,order_position",
-  P3: "participant_id,slot,item_id,dataset,condition,block,block_order,q1,q2,q1_shown,q2_shown,understand,confidence,effort,n_opened,rt_seconds,order_position",
+  P3: "participant_id,slot,item_id,dataset,condition,block,block_order,q1,q2,q1_shown,q2_shown,understand,confidence,effort,n_opened,revised_late,rt_seconds,order_position",
   P4: "participant_id,slot,p3_rank_easiest,p3_prefer,p3_recal,s1_want,s1_trust,s1_check,s2_helps,s2_do,s3_help,s3_first,s3_pick,s3_free,field,ai_use"};
 const esc = v => { v = v == null ? "" : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
 function toCSV(part, list){ const cols = COLS[part].split(","); return [cols.join(",")].concat(list.map(r => cols.map(c => esc(r[c])).join(","))).join("\n") + "\n"; }
