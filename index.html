@@ -461,7 +461,7 @@ function rIntro(){
       h("li", null, "Check whether two steps make the same claim (5 minutes)."),
       h("li", null, "Look at how the AI system reached its answer, shown in three different ways, and answer questions about it (18 minutes)."),
       h("li", null, "A short survey about when you would want to see an AI system's reasoning (5 minutes).")),
-    h("p", {class: "muted"}, "You can use Back at any point to change an answer. There are no trick questions."),
+    h("p", {class: "muted"}, "There are no trick questions."),
     footer(true, "Start Part 1"));
 }
 
@@ -475,7 +475,7 @@ function rInstr1(){
       h("li", null, h("b", null, "Yes"), " if the reasoning says what the step says, even in other words."),
       h("li", null, h("b", null, "Partly"), " if the reasoning says some of it, but the step adds or changes something (a different number, an extra claim)."),
       h("li", null, h("b", null, "No"), " if the reasoning does not say it anywhere.")),
-    h("p", {class: "muted"}, `${state.sched.P1.length} steps, about 20 seconds each. The next one appears when you choose; Back lets you change an answer.`)],
+    h("p", {class: "muted"}, `${state.sched.P1.length} steps, about 20 seconds each. The next one appears when you choose.`)],
     h("div", {class: "stack", style: "gap:8px"},
       h("div", {class: "bigstep"}, h("span", {class: "tag Reasoning"}, "Reasoning"), "The excess of Alice's taxable income over $36,900 is $33,217."),
       h("div", {class: "excerpt"}, h("span", {class: "cut"}, "… "), "Her income of $70,117 falls in the second bracket. Subtracting the bracket floor gives $70,117 − $36,900 = $33,217, which is taxed at 28%.", h("span", {class: "cut"}, " …")),
