@@ -643,7 +643,10 @@ function rP3(sc){
     h("h3", null, "2. Where did the ones that disagreed go a different way?"),
     choices(q2.map(o => [o.key, o.text]), r.q2, v => set("q2", v)),
     h("h3", null, "3. I understand how the AI reached its answer."), scale("understand", "disagree", "agree"),
-    h("h3", null, "4. How sure are you that the AI's answer is right?"), scale("confidence", "not sure", "completely sure"),
+    h("h3", null, "4. How sure are you that the AI's answer is right?"),
+    h("div", {class: "answerbox", style: "padding:8px 12px"}, h("span", {class: "small"}, "The AI's answer"), h("b", null, shortAns(it, it.answer)),
+      legend(it) ? h("span", {class: "small muted"}, {sara: "(whether the law supports the statement)", folio: "(whether the conclusion follows)"}[it.dataset] || "") : null),
+    scale("confidence", "not sure", "completely sure"),
     h("h3", null, "5. How hard was it to find what you needed?"), scale("effort", "very easy", "very hard"),
     footer(ok, ok ? "Next" : "Answer all five to continue"));
   return h("div", {class: "p3grid"}, h("div", {class: "stack"}, qhead, refInline(it), view), panel);
