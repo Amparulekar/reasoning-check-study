@@ -220,7 +220,9 @@ const state = {view: "start", slot: 1, pid: "", preview: false, showKey: false, 
   sessionId: "", submitted: false, sched: null};
 const now = () => Date.now();
 function logEv(type, extra){ state.log.push(Object.assign({t: new Date().toISOString(), type, screen: state.i}, extra || {})); }
-function saveLocal(){ try { localStorage.setItem("rcstudy5:" + state.sessionId, JSON.stringify(state)); localStorage.setItem("rcstudy5:last", state.sessionId); } catch (e) {} }
+// a session saved by another version of the page (other items or screen order) is never restored
+const PAGE_REV = "v6b:" + ((DATA.meta || {}).version_id || "");
+function saveLocal(){ state.pageRev = PAGE_REV; try { localStorage.setItem("rcstudy5:" + state.sessionId, JSON.stringify(state)); localStorage.setItem("rcstudy5:last", state.sessionId); } catch (e) {} }
 
 /* ============================================================ screens */
 function buildScreens(){
@@ -454,7 +456,7 @@ function renderStart(app){
       h("p", {class: "small muted"}, "Your name is used only to match your answers to you; it is never shown to anyone else. If you close the page by accident, opening it again brings you back to where you were."),
       err,
       previewLink ? h("p", {class: "notice small"}, "Author preview: part navigator, timers and answer key are on; this session is not counted.") : null,
-      h("p", {class: "small muted"}, `Each participant checks ${sc.P1.length} steps and ${sc.P2.length} step pairs, looks at ${sc.P3.length} questions in three formats, and answers a short survey.`),
+      h("p", {class: "small muted"}, `Each participant looks at ${sc.P3.length} questions in three formats, checks ${sc.P1.length} steps and ${sc.P2.length} step pairs, and answers a short survey.`),
       todo.length ? h("p", {class: "small"}, h("span", {class: "ph"}, "Not ready"), ` ${todo.length} open item${todo.length > 1 ? "s" : ""} before piloting (see the author key).`) : null,
       h("div", {class: "row"}, h("button", {class: "primary", onclick: begin}, "Start the study"),
         null)),
@@ -864,10 +866,10 @@ function walkthrough(n, only){
 function start(saved){
   let w = null; try { w = /^#walk-(\d+)(?:-(\d+))?$/.exec(location.hash); } catch (e) {}
   if (w && DATA.meta && DATA.meta.tag) { walkthrough(+w[1], w[2] ? +w[2] : null); return; }  /* private build only (the public meta has no tag) */
-  if (saved && saved.view && saved.sched && saved.sched.P1 && saved.sched.order){ Object.assign(state, saved); state.shownAt = now(); }
+  if (saved && saved.view && saved.sched && saved.sched.P1 && saved.sched.order && saved.pageRev === PAGE_REV){ Object.assign(state, saved); state.shownAt = now(); }
   else {  // like the AMAZON study: a refresh or accidental close silently returns to the unfinished session on this device
     try { const last = localStorage.getItem("rcstudy5:last"), d = last && JSON.parse(localStorage.getItem("rcstudy5:" + last));
-      if (d && d.view === "study" && !d.finishedAt && !d.preview && d.sched && d.sched.order){ Object.assign(state, d); state.shownAt = now(); logEv("restored_after_reload"); } } catch (e) {}
+      if (d && d.view === "study" && !d.finishedAt && !d.preview && d.sched && d.sched.order && d.pageRev === PAGE_REV){ Object.assign(state, d); state.shownAt = now(); logEv("restored_after_reload"); } } catch (e) {}
   }
   render(); }
 if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(() => JSON.parse(JSON.stringify(state)));
