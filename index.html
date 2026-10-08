@@ -729,48 +729,27 @@ function rS3(){
 
 /* ----- done: debrief + results */
 function rDone(){
+  // Last screen: answers go to the organiser automatically, and the same answers are always shown below to copy,
+  // as a backup in case sending did not get through. No buttons or choices.
   if (!state.finishedAt){ state.finishedAt = new Date().toISOString(); logEv("session_finished"); saveLocal(); }
-  const files = csvFiles();
-  const status = h("p", {class: "small", id: "save-status", "aria-live": "polite"}, state.submitted ? "Results submitted." : state.sent ? "Your answers were sent." : "");
-  const copyAll = h("div", {class: "stack", id: "copy-all", hidden: true});
-  const showCopy = msg => { status.textContent = msg; copyAll.hidden = false; const p = payload(); delete p.log;
-    const t = JSON.stringify(p), area = h("textarea", {class: "csvbox", readonly: true, "aria-label": "Answers"}, t);
-    const btn = h("button", {class: "primary", onclick: async () => { try { await navigator.clipboard.writeText(t); btn.textContent = "Copied"; } catch (_) { area.focus(); area.select(); btn.textContent = "Selected: press Ctrl/Cmd+C"; } }}, "Copy answers");
-    copyAll.replaceChildren(h("p", null, "Please copy your answers and send them to the organizer:"), btn, area); };
+  const status = h("p", {id: "save-status", "aria-live": "polite"}, state.sent ? "Your answers were sent." : "");
   const send = async () => {
-    if (!SUBMIT_URL){ showCopy("Automatic sending is not set up on this page."); return; }
     if (state.preview){ status.textContent = "Preview session: answers are not sent."; return; }
+    if (!SUBMIT_URL){ status.textContent = "Please copy your answers below and send them to the organizer."; return; }
     status.textContent = "Sending your answers…";
     try { await sendToSheet(); state.sent = true; saveLocal(); status.textContent = "Your answers were sent. Thank you!"; }
-    catch (e) { showCopy("Your answers could not be sent (no connection?)."); }
+    catch (e) { status.textContent = "Your answers could not be sent. Please copy them below and send them to the organizer."; }
   };
   if (!state.sent && !state.sendTried){ state.sendTried = true; saveLocal(); setTimeout(send, 50); }
-  const boxes = h("div", {class: "stack", id: "csv-fallback", hidden: true});
-  const showFallback = msg => { status.textContent = msg; boxes.hidden = false; boxes.replaceChildren(...Object.entries(files).map(([n, t]) => {
-    const area = h("textarea", {class: "csvbox", readonly: true, "aria-label": n}, t);
-    const copy = h("button", {class: "quiet", onclick: async () => { try { await navigator.clipboard.writeText(t); copy.textContent = "Copied"; } catch (_) { area.focus(); area.select(); copy.textContent = "Selected: press Ctrl/Cmd+C"; } }}, "Copy");
-    return h("div", {class: "stack", style: "gap:4px"}, h("div", {class: "row", style: "justify-content:space-between"}, h("b", {class: "mono small"}, n), copy), area); })); };
-  const download = async () => {
-    const dl = await claudeUse("downloads");
-    if (!dl){ showFallback("Downloads are not available here. Copy each file below instead."); return; }
-    try {
-      if (window.JSZip){ const z = new JSZip(); for (const [n, t] of Object.entries(files)) z.file(n, t); z.file("participants.csv", participantsCSV([payload()])); z.file("log.json", JSON.stringify(payload(), null, 1));
-        await dl.save({filename: `${state.pid}_slot${state.slot}_results.zip`, data: await z.generateAsync({type: "blob"})}); }
-      else { for (const [n, t] of Object.entries(files)) await dl.save({filename: `${state.pid}_slot${state.slot}_${n}`, data: t}); }
-      status.textContent = "Saved.";
-    } catch (e) { if (e && e.code === "declined") status.textContent = "Download cancelled."; else showFallback("The download did not work here. Copy each file below instead."); }
-  };
+  const p = payload(); delete p.log;
+  const t = JSON.stringify(p);
+  const area = h("textarea", {class: "csvbox", id: "answers", readonly: true, "aria-label": "Your answers", style: "min-height:140px"}, t);
+  const copy = h("button", {class: "quiet", onclick: async () => { try { await navigator.clipboard.writeText(t); copy.textContent = "Copied"; } catch (_) { area.focus(); area.select(); copy.textContent = "Selected: press Ctrl/Cmd+C"; } }}, "Copy");
   return h("div", {class: "stack narrow"},
-    h("div", {class: "card stack"}, h("h2", null, "Thank you!"),
+    h("div", {class: "card stack"}, h("h2", null, "Thank you!"), status,
       h("p", null, "This study looks at a way of combining many attempts by an AI system into one summary of their reasoning. You checked whether its steps really come from the attempts (Part 1) and whether it merges only steps that say the same thing (Part 2), compared how easy it is to see how an answer was reached in three formats (Part 3), and told us when you would want to see an AI system's reasoning (Part 4)."),
       h("p", {class: "muted"}, "Please don't discuss the questions with other participants until everyone has taken part.")),
-    h("div", {class: "card stack"}, status, copyAll),
-    h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "For the experimenter"),
-      h("div", {class: "row"}, SUBMIT_URL ? h("button", {onclick: send}, "Send answers again") : null,
-        window.claude ? h("button", {id: "submit-btn", disabled: state.submitted, onclick: () => submit(status)}, state.submitted ? "Submitted" : "Submit to the artifact") : null,
-        h("button", {onclick: download}, "Download results (CSV)"), h("button", {onclick: () => showCopy("")}, "Show answers to copy")),
-      boxes,
-      h("button", {class: "quiet", onclick: () => { state.view = "start"; render(); }}, "New session")));
+    h("div", {class: "card stack"}, h("div", {class: "row", style: "justify-content:space-between"}, h("b", null, "Your answers (a copy, in case sending did not work)"), copy), area));
 }
 
 /* ============================================================ results: rows + CSV */
