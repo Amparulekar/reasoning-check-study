@@ -144,7 +144,7 @@ const SUBMIT_URL = "https://script.google.com/macros/s/AKfycby4HoEizH3ptkCLovGY0
 const N_SLOTS = 18, N_GROUPS = 6;  // 18 people = 6 groups x 3 replicates: every Part 1-2 item gets exactly 3 raters
 const BUDGET = {P0: 90, P1: 150, P2: 300, P3: 1080, P4: 300};   // seconds (about 32 min)
 const PART_NAMES = {P0: "Introduction", P1: "Part 1 · Is the step part of the reasoning?", P2: "Part 2 · Same claim or not?",
-  P3: "Part 3 · How did the AI reach its answer?", P4: "Part 4 · Your view"};
+  P3: "Part 3 · How did the AI system reach its answer?", P4: "Part 4 · Your view"};
 const OFFSET = {P1: 1, P2: 2};
 const CONDS = ["debate", "vote", "graph"];
 const COND_ORDERS = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
@@ -431,9 +431,9 @@ function renderStart(app){
   const sc = schedule(1);
   const todo = (DATA.meta && DATA.meta.todo) || [];
   app.append(h("div", {class: "stack", style: "max-width:720px;margin:0 auto"},
-    h("div", {class: "eyebrow"}, "User study · AI reasoning"),
-    h("h1", null, "Understanding an AI's reasoning"),
-    h("p", {class: "muted"}, "About 30–35 minutes, in four parts. You will look at how an AI reasoned about questions and answer a few questions about it. You do not need any special knowledge: everything you need is on the screen."),
+    h("div", {class: "eyebrow"}, "User study · AI systems"),
+    h("h1", null, "Understanding an AI system's reasoning"),
+    h("p", {class: "muted"}, "About 30–35 minutes, in four parts. You will look at how an AI system reasoned about questions and answer a few questions about it. You do not need any special knowledge: everything you need is on the screen."),
     h("p", {class: "notice small"}, "Some questions are based on detective stories that describe fictional murders. There are no graphic details. You can stop at any time."),
     h("div", {class: "card stack"},
       h("div", {class: "eyebrow"}, "Your details"),
@@ -454,7 +454,7 @@ function renderStart(app){
 function rIntro(){
   return h("div", {class: "card stack narrow"},
     h("h2", null, "How this works"),
-    h("p", null, "We asked an AI each question several times. Every attempt wrote out its reasoning in its own words and gave an answer. We then turned the reasoning into short numbered steps, and combined the steps from all the attempts into one summary."),
+    h("p", null, "We asked an AI system each question several times. Every attempt wrote out its reasoning in its own words and gave an answer. We then turned the reasoning into short numbered steps, and combined the steps from all the attempts into one summary."),
     h("p", null, "Steps have a label:"),
     h("ul", {class: "steps"}, ["Fact", "Reasoning", "Conclusion"].map(t => h("li", {class: "step", style: "grid-template-columns:minmax(0,1fr)"},
       h("span", null, h("span", {class: "tag " + t}, t), {Fact: "something taken from the question", Reasoning: "a step that works something out", Conclusion: "the step that reaches the answer"}[t])))),
@@ -462,8 +462,8 @@ function rIntro(){
     h("ol", {class: "stack", style: "gap:4px;padding-left:1.3em;margin:0"},
       h("li", null, "Check that a step really is part of the reasoning it was taken from (2 minutes)."),
       h("li", null, "Check whether two steps make the same claim (5 minutes)."),
-      h("li", null, "Look at how the AI reached its answer, shown in three different ways, and answer questions about it (18 minutes)."),
-      h("li", null, "A short survey about when you would want to see an AI's reasoning (5 minutes).")),
+      h("li", null, "Look at how the AI system reached its answer, shown in three different ways, and answer questions about it (18 minutes)."),
+      h("li", null, "A short survey about when you would want to see an AI system's reasoning (5 minutes).")),
     h("p", {class: "muted"}, "You can use Back to go back and change an answer at any point, except to an earlier format in Part 3. There are no trick questions."),
     footer(true, "Start Part 1"));
 }
@@ -471,7 +471,7 @@ function rIntro(){
 /* ----- Part 1: extraction */
 function rInstr1(){
   return instr("P1", 2, "Is the step part of the reasoning?", [
-    h("p", null, "An AI wrote out its reasoning for a question. A second AI then read that reasoning and pulled short steps out of it. Each step is meant to be a piece of that same reasoning, restated as one sentence. It should not add anything the reasoning did not say."),
+    h("p", null, "An AI system wrote out its reasoning for a question. A second AI system then read that reasoning and pulled short steps out of it. Each step is meant to be a piece of that same reasoning, restated as one sentence. It should not add anything the reasoning did not say."),
     h("p", null, h("b", null, "Your job: "), "check that the step really is part of the reasoning. You see the passage the step most likely came from; you can also open the whole reasoning."),
     h("p", {class: "notice"}, h("b", null, "The step only has to be a part of the reasoning. "), "The reasoning will almost always say more than the step; that is fine and expected. Check only that everything the step says is also in the reasoning."),
     h("ul", {class: "stack", style: "gap:4px;padding-left:1.3em;margin:0"},
@@ -508,7 +508,7 @@ function rP1(sc){
 /* ----- Part 2: merges */
 function rInstr2(){
   return instr("P2", 5, "Same claim or not?", [
-    h("p", null, "To combine the attempts, the AI has to decide when two steps written by different attempts say the same thing, so they can be counted together. Help us check those decisions."),
+    h("p", null, "To combine the attempts, the AI system has to decide when two steps written by different attempts say the same thing, so they can be counted together. Help us check those decisions."),
     h("ul", {class: "stack", style: "gap:4px;padding-left:1.3em;margin:0"},
       h("li", null, h("b", null, "Same claim"), ": the two steps say the same thing, even if worded differently."),
       h("li", null, h("b", null, "Different claims"), ": they say different things, for example different numbers, people or conditions, or one says more than the other.")),
@@ -533,14 +533,14 @@ function rP2(sc){
 
 /* ----- Part 3: interpretability (three formats) */
 const COND_INFO = {
-  debate: {title: "Format: a debate between AI agents", short: "Debate",
-    text: ["Four AI agents discussed the question in three rounds. In each round, every agent gives an answer and how confident it is (0 to 1). From round 2, they have read each other's answers.",
+  debate: {title: "Format: a debate between AI systems", short: "Debate",
+    text: ["Four AI systems discussed the question in three rounds. In each round, every agent gives an answer and how confident it is (0 to 1). From round 2, they have read each other's answers.",
            "Click an agent to read what it wrote."]},
   vote: {title: "Format: 12 attempts and their vote", short: "12 attempts",
-    text: ["The AI answered the question 12 times, separately. You see each attempt's answer and the vote count.",
+    text: ["The AI system answered the question 12 times, separately. You see each attempt's answer and the vote count.",
            "Click an attempt to read its reasoning."]},
   graph: {title: "Format: a combined summary of 12 attempts", short: "Combined summary",
-    text: ["The AI answered the question 12 times, separately, and the reasoning was combined into one summary.",
+    text: ["The AI system answered the question 12 times, separately, and the reasoning was combined into one summary.",
            "Each step shows how many of the 12 attempts said it. Below it you see the reasoning behind the other answer."]}};
 function shortAns(it, label){  // short plain labels for lists; the full meaning is given once at the top
   const L = String(label);
@@ -554,10 +554,10 @@ function legend(it){
   return null;
 }
 function rInstr3(sc){
-  return instr("P3", 18, "How did the AI reach its answer?", [
+  return instr("P3", 18, "How did the AI system reach its answer?", [
     h("p", null, `You will see ${state.sched.P3.length} questions, each shown in one of three formats. `, h("b", null, "You don't need to solve them or read everything."), " Look at whatever helps you answer two questions, which are the same every time:"),
     h("ol", {class: "stack", style: "gap:4px;padding-left:1.3em;margin:0"},
-      h("li", null, h("b", null, "Which point did most of the AI's attempts or agents rely on?")),
+      h("li", null, h("b", null, "Which point did most of the AI system's attempts or agents rely on?")),
       h("li", null, h("b", null, "Where did the ones that disagreed go a different way?"))),
     h("div", {class: "example"}, h("div", {class: "eyebrow"}, "Example"),
       h("p", {class: "small"}, "Does Alice owe $14,836 in tax? 8 attempts say yes: the tax comes to $14,835.76. 4 say no: they work out 28% of $33,217 as $9,338.16."),
@@ -578,11 +578,11 @@ function respRow(head, text, onOpen, id){
   return d;
 }
 function answerHead(it, label, extra){
-  return h("div", {class: "answerbox"}, h("span", {class: "small"}, "The AI's answer"), h("b", null, shortAns(it, label)), extra ? h("span", {class: "small muted"}, extra) : null);
+  return h("div", {class: "answerbox"}, h("span", {class: "small"}, "The AI system's answer"), h("b", null, shortAns(it, label)), extra ? h("span", {class: "small muted"}, extra) : null);
 }
 function viewDebate(it, onOpen){
   const d = it.debate;
-  return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "Debate between 4 AI agents"),
+  return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "Debate between 4 AI systems"),
     answerHead(it, d.final_answer, "after the debate"),
     legend(it) ? h("p", {class: "legend"}, legend(it)) : null,
     ...d.rounds.map(rd => h("div", {class: "round"}, h("h3", null, `Round ${rd.round}`),
@@ -638,13 +638,13 @@ function rP3(sc){
       h("p", {class: "small muted"}, "Does the law support or contradict the statement?")) : questionBox(it),
     keyBox(`${it.dataset}, ${cond}; correct: Q1 ${(q1.find(o => o.correct) || {}).key || "(public build)"}, Q2 ${(q2.find(o => o.correct) || {}).key || ""}; answer ${it.answer_correct ? "correct" : "wrong"}`));
   const panel = h("div", {class: "card stack qcard qpanel", "data-keep": `qpanel:${id}`},
-    h("h3", null, "1. Which point did most of the AI's attempts or agents rely on?"),
+    h("h3", null, "1. Which point did most of the AI system's attempts or agents rely on?"),
     choices(q1.map(o => [o.key, o.text]), r.q1, v => set("q1", v)),
     h("h3", null, "2. Where did the ones that disagreed go a different way?"),
     choices(q2.map(o => [o.key, o.text]), r.q2, v => set("q2", v)),
-    h("h3", null, "3. I understand how the AI reached its answer."), scale("understand", "disagree", "agree"),
-    h("h3", null, "4. How sure are you that the AI's answer is right?"),
-    h("div", {class: "answerbox", style: "padding:8px 12px"}, h("span", {class: "small"}, "The AI's answer"), h("b", null, shortAns(it, it.answer)),
+    h("h3", null, "3. I understand how the AI system reached its answer."), scale("understand", "disagree", "agree"),
+    h("h3", null, "4. How sure are you that the AI system's answer is right?"),
+    h("div", {class: "answerbox", style: "padding:8px 12px"}, h("span", {class: "small"}, "The AI system's answer"), h("b", null, shortAns(it, it.answer)),
       legend(it) ? h("span", {class: "small muted"}, {sara: "(whether the law supports the statement)", folio: "(whether the conclusion follows)"}[it.dataset] || "") : null),
     scale("confidence", "not sure", "completely sure"),
     h("h3", null, "5. How hard was it to find what you needed?"), scale("effort", "very easy", "very hard"),
@@ -660,7 +660,7 @@ function rP3Rank(){
   const ok = order.every(c => rk[c]) && r.p3_prefer;
   return h("div", {class: "card stack narrow"}, h("div", {class: "eyebrow"}, "Part 3 · looking back"), h("h2", null, "Now that you have seen all three formats"),
     h("p", null, "Your earlier answers stay as they are. Here we want your view now, after seeing all three."),
-    h("h3", null, "1. Rank the formats from easiest (1st) to hardest (3rd) for seeing how the AI reached its answer."),
+    h("h3", null, "1. Rank the formats from easiest (1st) to hardest (3rd) for seeing how the AI system reached its answer."),
     ...order.map(c => h("div", {class: "row", style: "justify-content:space-between;border:1px solid var(--line);border-radius:8px;padding:8px 12px"},
       h("b", null, fmtName(c)),
       h("div", {class: "row"}, [1, 2, 3].map(v => h("button", {class: "choice", style: "min-height:36px;padding:6px 12px;text-align:center", "aria-pressed": String(rk[c] === v), onclick: () => setRank(c, v)}, ["1st", "2nd", "3rd"][v - 1]))))),
@@ -682,11 +682,11 @@ function sMulti(k, opts){ const r = surveyState(), cur = new Set((r[k] || "").sp
 function sText(k){ const r = surveyState(); return h("textarea", {id: "sv-" + k, oninput: e => { r[k] = e.target.value; saveLocal(); }}, r[k] || ""); }
 function rS1(){
   const r = surveyState(), ok = r.s1_want && r.s1_trust;
-  return h("div", {class: "card stack narrow"}, h("div", {class: "eyebrow"}, "Part 4 · Your view · 1 of 3"), h("h2", null, "One AI, one answer"),
-    h("div", {class: "scen"}, h("p", null, "Money is tight this month. Your rent is due in two weeks, and paying it would leave you short for other bills. You ask an AI assistant what to do."),
-      h("p", null, h("b", null, "The AI answers: "), "“Don't pay your rent this month.”")),
-    h("h3", null, "1. Before acting on this, what would you want from the AI?"),
-    sChoice("s1_want", [["nothing", "Nothing more: the answer is enough"], ["short", "A one-sentence reason"], ["full", "Its full step-by-step reasoning"], ["other_source", "I would not rely on an AI for this at all"]]),
+  return h("div", {class: "card stack narrow"}, h("div", {class: "eyebrow"}, "Part 4 · Your view · 1 of 3"), h("h2", null, "One AI system, one answer"),
+    h("div", {class: "scen"}, h("p", null, "Money is tight this month. Your rent is due in two weeks, and paying it would leave you short for other bills. You ask an AI system what to do."),
+      h("p", null, h("b", null, "The AI system answers: "), "“Don't pay your rent this month.”")),
+    h("h3", null, "1. Before acting on this, what would you want from the AI system?"),
+    sChoice("s1_want", [["nothing", "Nothing more: the answer is enough"], ["short", "A one-sentence reason"], ["full", "Its full step-by-step reasoning"], ["other_source", "I would not rely on an AI system for this at all"]]),
     h("h3", null, "2. How much would you trust this answer if it came with no reasoning?"), sScale("s1_trust", "not at all", "completely"),
     h("h3", null, "3. If it did show its reasoning, what would you check first? (optional)"), sText("s1_check"),
     footer(ok, "Next"));
@@ -694,7 +694,7 @@ function rS1(){
 function rS2(){
   const r = surveyState(), ok = r.s2_helps && r.s2_do;
   return h("div", {class: "card stack narrow"}, h("div", {class: "eyebrow"}, "Part 4 · Your view · 2 of 3"), h("h2", null, "Four AIs, split answers"),
-    h("div", {class: "scen"}, h("p", null, "You have had a headache on and off for ten days. You ask four different AI assistants whether you should see a doctor this week."),
+    h("div", {class: "scen"}, h("p", null, "You have had a headache on and off for ten days. You ask four different AI systems whether you should see a doctor this week."),
       h("p", null, h("b", null, "Two of them say: "), "“See a doctor this week.” ", h("b", null, "The other two say: "), "“Rest and keep an eye on it for another week.”")),
     h("h3", null, "1. What would help you decide? Choose all that apply."),
     sMulti("s2_helps", [["vote", "Just knowing which answer more assistants gave"], ["each_full", "Reading each assistant's full explanation"],
@@ -702,7 +702,7 @@ function rS2(){
       ["diagram", "A diagram showing which reasons each answer rests on, and how many assistants give each reason"],
       ["human", "None of these: I would ask a doctor or another person"]]),
     h("h3", null, "2. With a 2-to-2 split and nothing else to go on, what would you most likely do?"),
-    sChoice("s2_do", [["safer", "Follow the more cautious answer"], ["ask_more", "Ask another AI or ask again"], ["read_reasons", "Read the reasons and decide which side makes more sense"], ["person", "Ask a person instead"], ["ignore", "Ignore both"]]),
+    sChoice("s2_do", [["safer", "Follow the more cautious answer"], ["ask_more", "Ask another AI system or ask again"], ["read_reasons", "Read the reasons and decide which side makes more sense"], ["person", "Ask a person instead"], ["ignore", "Ignore both"]]),
     footer(ok, "Next"));
 }
 function rS3(){
@@ -710,18 +710,18 @@ function rS3(){
   const sel = (k, opts) => h("select", {id: "sel-" + k, onchange: e => { r[k] = e.target.value; saveLocal(); render(); }}, h("option", {value: ""}, "Choose…"), opts.map(o => h("option", {value: o, selected: r[k] === o}, o)));
   return h("div", {class: "stack", style: "max-width:1000px;margin:16px auto"},
     h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "Part 4 · Your view · 3 of 3"), h("h2", null, "A picture of who agrees with what"),
-      h("p", null, "Here is the kind of summary you saw in Part 3, drawn as a picture, for a tax question where 12 AI attempts split 6 to 6 between two answers."),
+      h("p", null, "Here is the kind of summary you saw in Part 3, drawn as a picture, for a tax question where 12 attempts by an AI system split 6 to 6 between two answers."),
       DATA.figure ? h("div", {class: "figure"}, h("img", {src: DATA.figure, alt: "12 attempts split 6 to 6. On the left a graph of all 41 steps; on the right the steps behind each answer, each with how many attempts stated it."})) : null,
       h("ul", {class: "stack small", style: "gap:4px;padding-left:1.3em;margin:0"},
         h("li", null, "Green is the reasoning behind one answer, orange the reasoning behind the other; grey steps are shared by both."),
         h("li", null, "“8/12 traces” means 8 of the 12 attempts stated that step. A bigger circle on the left means more attempts stated it."))),
     h("div", {class: "card stack"},
-      h("h3", null, "1. When AI answers are split evenly, how much would a picture like this help you decide?"), sScale("s3_help", "not at all", "a great deal"),
+      h("h3", null, "1. When AI systems' answers are split evenly, how much would a picture like this help you decide?"), sScale("s3_help", "not at all", "a great deal"),
       h("h3", null, "2. What would you look at first in it?"),
       sChoice("s3_first", [["counts", "How many attempts stated each step"], ["split", "The point where the two answers go different ways"], ["answers", "Only the final answers"], ["nothing", "Nothing: I would not use it"]]),
       h("h3", null, "3. Looking at this example, which answer would you go with?"),
       sChoice("s3_pick", [["Entailed", "Entailed (green)"], ["Contradicted", "Contradicted (orange)"], ["cant_tell", "I can't tell"]]),
-      h("h3", null, "4. What else would help you decide when AI assistants disagree? (optional)"), sText("s3_free"),
+      h("h3", null, "4. What else would help you decide when AI systems disagree? (optional)"), sText("s3_free"),
       h("div", {class: "row"}, h("label", {for: "sel-field"}, "Your field of study or work"), sel("field", ["Law", "Medicine or health", "Natural sciences", "Engineering or computer science", "Social sciences or humanities", "Business", "Other"])),
       h("div", {class: "row"}, h("label", {for: "sel-ai_use"}, "How often do you use AI chat tools?"), sel("ai_use", ["Never", "A few times a month", "Weekly", "Daily"])),
       footer(ok, "Finish")));
@@ -762,7 +762,7 @@ function rDone(){
   };
   return h("div", {class: "stack narrow"},
     h("div", {class: "card stack"}, h("h2", null, "Thank you!"),
-      h("p", null, "This study looks at a way of combining many AI attempts into one summary of their reasoning. You checked whether its steps really come from the attempts (Part 1) and whether it merges only steps that say the same thing (Part 2), compared how easy it is to see how an answer was reached in three formats (Part 3), and told us when you would want to see an AI's reasoning (Part 4)."),
+      h("p", null, "This study looks at a way of combining many attempts by an AI system into one summary of their reasoning. You checked whether its steps really come from the attempts (Part 1) and whether it merges only steps that say the same thing (Part 2), compared how easy it is to see how an answer was reached in three formats (Part 3), and told us when you would want to see an AI system's reasoning (Part 4)."),
       h("p", {class: "muted"}, "Please don't discuss the questions with other participants until everyone has taken part.")),
     h("div", {class: "card stack"}, status, copyAll),
     h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "For the experimenter"),
