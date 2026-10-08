@@ -366,8 +366,23 @@ function next(){ go(state.i + 1); }
 function autoNext(first){ if (first) setTimeout(() => { if (state.view === "study") next(); }, 220); }
 
 /* ============================================================ renderers */
+let restoring = false;
 function render(){
+  // A click redraws the screen: keep the page and panel scroll positions and which sections are open, so answering a
+  // question in the side panel does not jump back to the top or close the attempt someone is reading.
+  const keep = {y: window.scrollY, panels: {}, open: new Set()};
+  document.querySelectorAll("[data-keep]").forEach(el => keep.panels[el.dataset.keep] = el.scrollTop);
+  document.querySelectorAll("details[data-id]").forEach(d => { if (d.open) keep.open.add(d.dataset.id); });
   const app = $("#app"); app.replaceChildren();
+  try { renderInner(app); } finally {
+    restoring = true;
+    document.querySelectorAll("details[data-id]").forEach(d => { if (keep.open.has(d.dataset.id)) d.open = true; });
+    document.querySelectorAll("[data-keep]").forEach(el => { if (el.dataset.keep in keep.panels) el.scrollTop = keep.panels[el.dataset.keep]; });
+    window.scrollTo(0, keep.y);
+    setTimeout(() => { restoring = false; }, 0);
+  }
+}
+function renderInner(app){
   renderPrebar();
   if (state.view === "start") return renderStart(app);
   const sc = state.screens[state.i];
@@ -474,8 +489,8 @@ function rP1(sc){
   const it = sc.x, id = it.item_id;
   const r = state.resp.P1[id] || (state.resp.P1[id] = {item_id: id, shown: now()});
   const pick = v => { const first = !r.rating; r.rating = v; r.answered = now(); logEv("P1_rating", {item: id, value: v}); saveLocal(); render(); autoNext(first); };
-  const full = it.trace_full ? h("details", {class: "resp"}, h("summary", null, h("span", null, "The whole reasoning this step was taken from")), h("div", {class: "body"}, it.trace_full)) : null;
-  if (full) full.addEventListener("toggle", () => { if (full.open){ r.opened_full = true; logEv("P1_full_opened", {item: id}); } });
+  const full = it.trace_full ? h("details", {class: "resp", "data-id": `${id}:full`}, h("summary", null, h("span", null, "The whole reasoning this step was taken from")), h("div", {class: "body"}, it.trace_full)) : null;
+  if (full) full.addEventListener("toggle", () => { if (full.open && !restoring){ r.opened_full = true; logEv("P1_full_opened", {item: id}); } });
   return h("div", {class: "card stack narrow"},
     h("div", {class: "row", style: "justify-content:space-between"}, h("span", {class: "eyebrow"}, `Step ${sc.pos} of ${state.sched.P1.length}`), h("span", {class: "small muted"}, it.context)),
     h("div", {class: "eyebrow"}, "Step taken from the reasoning"),
@@ -557,9 +572,9 @@ function rCond(sc){
     ...ci.text.map(t => h("p", null, t)), footer(true, "Show the questions"));
 }
 function supportBar(n){ return h("span", {class: "supp"}, h("span", {class: "bar", "aria-hidden": "true"}, Array.from({length: 12}, (_, i) => h("i", {class: i < n ? "on" : ""}))), `said by ${n} of 12 attempts`); }
-function respRow(head, text, onOpen){
-  const d = h("details", {class: "resp"}, h("summary", null, ...head), h("div", {class: "body"}, text || "(no text)"));
-  d.addEventListener("toggle", () => { if (d.open) onOpen(); });
+function respRow(head, text, onOpen, id){
+  const d = h("details", {class: "resp", "data-id": id || null}, h("summary", null, ...head), h("div", {class: "body"}, text || "(no text)"));
+  d.addEventListener("toggle", () => { if (d.open && !restoring) onOpen(); });
   return d;
 }
 function answerHead(it, label, extra){
@@ -572,7 +587,7 @@ function viewDebate(it, onOpen){
     legend(it) ? h("p", {class: "legend"}, legend(it)) : null,
     ...d.rounds.map(rd => h("div", {class: "round"}, h("h3", null, `Round ${rd.round}`),
       h("div", {class: "rgrid"}, ...rd.responses.map(x => respRow([h("b", null, x.agent), h("span", {class: "chip"}, shortAns(it, x.answer)),
-        x.confidence != null ? h("span", {class: "conf"}, `conf. ${x.confidence}`) : null], x.text, () => onOpen(`r${rd.round}:${x.agent}`)))))));
+        x.confidence != null ? h("span", {class: "conf"}, `conf. ${x.confidence}`) : null], x.text, () => onOpen(`r${rd.round}:${x.agent}`), `${it.item_id}:r${rd.round}:${x.agent}`))))));
 }
 function tally(it){ const c = {}; it.attempts.forEach(a => c[a.answer] = (c[a.answer] || 0) + 1);
   return Object.entries(c).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${shortAns(it, k)}: ${n}`).join(" · "); }
@@ -581,7 +596,7 @@ function viewVote(it, onOpen){
   return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "12 separate attempts"),
     answerHead(it, it.answer, `${n} of ${it.attempts.length} attempts`),
     h("p", {class: "small"}, h("b", null, "Votes: "), tally(it)), legend(it) ? h("p", {class: "legend"}, legend(it)) : null,
-    h("div", {class: "rgrid"}, ...it.attempts.map(a => respRow([h("b", null, `Attempt ${a.attempt}`), h("span", {class: "chip"}, shortAns(it, a.answer))], a.text, () => onOpen(`a${a.attempt}`)))));
+    h("div", {class: "rgrid"}, ...it.attempts.map(a => respRow([h("b", null, `Attempt ${a.attempt}`), h("span", {class: "chip"}, shortAns(it, a.answer))], a.text, () => onOpen(`a${a.attempt}`), `${it.item_id}:a${a.attempt}`))));
 }
 function supportSteps(steps){ return h("ol", {class: "steps"}, steps.map(s => h("li", {class: "step"}, h("span", {class: "n"}, s.id + "."),
   h("span", {class: "t"}, h("span", {class: "tag " + s.type}, s.type), s.text,
@@ -598,13 +613,14 @@ function viewGraph(it){
 function refInline(it){  // the question's material, above the reasoning; long stories start closed
   const ref = it.reference || {};
   if (ref.kind === "mc") return null;
-  const box = (title, open, ...kids) => h("details", {class: "card", open: open || null}, h("summary", {style: "cursor:pointer;font-weight:700"}, title), h("div", {class: "refbody"}, ...kids));
+  const box = (title, open, ...kids) => { const d = h("details", {class: "card", open: open || null, "data-id": `${it.item_id}:ref`}, h("summary", {style: "cursor:pointer;font-weight:700"}, title), h("div", {class: "refbody"}, ...kids));
+    return d; };
   if (ref.kind === "sara") return box("The law", true, lawBlock(ref), calculator());
   if (ref.kind === "folio") return box("Premises (take these as true)", true, h("ol", null, ref.premises.map(p => h("li", null, p))));
   if (ref.kind === "musr") return box("The story (summary)", false,
     ref.content_warning ? h("p", {class: "notice small"}, "This story describes a fictional murder. There are no graphic details.") : null,
     ref.summary ? h("p", {class: "story", style: "border:0;padding:0"}, ref.summary) : null,
-    h("details", null, h("summary", {class: "quiet", style: "cursor:pointer;color:var(--accent)"}, "Show the full story"), h("p", {class: "story"}, ref.story)));
+    h("details", {"data-id": `${it.item_id}:story`}, h("summary", {class: "quiet", style: "cursor:pointer;color:var(--accent)"}, "Show the full story"), h("p", {class: "story"}, ref.story)));
   return null;
 }
 function rP3(sc){
@@ -621,7 +637,7 @@ function rP3(sc){
     ref.kind === "sara" ? h("div", {class: "stack", style: "gap:6px"}, h("p", null, h("b", null, "Case: "), ref.case), h("p", null, h("b", null, "Statement: "), ref.statement),
       h("p", {class: "small muted"}, "Does the law support or contradict the statement?")) : questionBox(it),
     keyBox(`${it.dataset}, ${cond}; correct: Q1 ${(q1.find(o => o.correct) || {}).key || "(public build)"}, Q2 ${(q2.find(o => o.correct) || {}).key || ""}; answer ${it.answer_correct ? "correct" : "wrong"}`));
-  const panel = h("div", {class: "card stack qcard qpanel"},
+  const panel = h("div", {class: "card stack qcard qpanel", "data-keep": `qpanel:${id}`},
     h("h3", null, "1. Which point did most of the AI's attempts or agents rely on?"),
     choices(q1.map(o => [o.key, o.text]), r.q1, v => set("q1", v)),
     h("h3", null, "2. Where did the ones that disagreed go a different way?"),
