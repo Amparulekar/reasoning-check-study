@@ -400,7 +400,6 @@ function renderStart(app){
   // Author preview (navigator, timers, answer key) only through the link ending in #preview; never shown to participants
   let previewLink = false; try { previewLink = location.hash === "#preview"; } catch (e) {}
   const prev = {checked: previewLink};
-  let resume = null; try { const last = localStorage.getItem("rcstudy5:last"); if (last){ const s = JSON.parse(localStorage.getItem("rcstudy5:" + last)); if (s && !s.finishedAt) resume = s; } } catch (e) {}
   const begin = () => {
     const n = parseInt(pnum.value, 10), first = fname.value.trim(), last = lname.value.trim();
     const okN = n >= 1 && n <= N_SLOTS;
@@ -422,17 +421,17 @@ function renderStart(app){
     h("p", {class: "muted"}, "About 30–35 minutes, in four parts. You will look at how an AI reasoned about questions and answer a few questions about it. You do not need any special knowledge: everything you need is on the screen."),
     h("p", {class: "notice small"}, "Some questions are based on detective stories that describe fictional murders. There are no graphic details. You can stop at any time."),
     h("div", {class: "card stack"},
-      h("div", {class: "eyebrow"}, "Experimenter setup"),
+      h("div", {class: "eyebrow"}, "Your details"),
       h("div", {class: "row"}, h("label", {for: "fname"}, "First name"), fname, h("label", {for: "lname"}, "Surname"), lname),
       h("div", {class: "row"}, h("label", {for: "pnum"}, "Participant number"), pnum,
-        h("span", {class: "small muted"}, `1 to ${N_SLOTS}. A replacement for someone who dropped out takes their number.`)),
-      h("p", {class: "small muted"}, "Names are stored only with the submitted session and in a separate participants file, never in the answer files."),
+        h("span", {class: "small muted"}, "The number you were given.")),
+      h("p", {class: "small muted"}, "Your name is used only to match your answers to you; it is never shown to anyone else. If you close the page by accident, opening it again brings you back to where you were."),
       err,
       previewLink ? h("p", {class: "notice small"}, "Author preview: part navigator, timers and answer key are on; this session is not counted.") : null,
       h("p", {class: "small muted"}, `Each participant checks ${sc.P1.length} steps and ${sc.P2.length} step pairs, looks at ${sc.P3.length} questions in three formats, and answers a short survey.`),
       todo.length ? h("p", {class: "small"}, h("span", {class: "ph"}, "Not ready"), ` ${todo.length} open item${todo.length > 1 ? "s" : ""} before piloting (see the author key).`) : null,
       h("div", {class: "row"}, h("button", {class: "primary", onclick: begin}, "Start the study"),
-        resume ? h("button", {onclick: () => { Object.assign(state, resume); state.view = "study"; state.shownAt = now(); render(); }}, `Resume ${resume.pid} (slot ${resume.slot})`) : null)),
+        null)),
     ownerPanel()));
 }
 
@@ -847,7 +846,12 @@ function walkthrough(n, only){
 function start(saved){
   let w = null; try { w = /^#walk-(\d+)(?:-(\d+))?$/.exec(location.hash); } catch (e) {}
   if (w && DATA.meta && DATA.meta.tag) { walkthrough(+w[1], w[2] ? +w[2] : null); return; }  /* private build only (the public meta has no tag) */
-  if (saved && saved.view && saved.sched && saved.sched.P1 && saved.sched.order){ Object.assign(state, saved); state.shownAt = now(); } render(); }
+  if (saved && saved.view && saved.sched && saved.sched.P1 && saved.sched.order){ Object.assign(state, saved); state.shownAt = now(); }
+  else {  // like the AMAZON study: a refresh or accidental close silently returns to the unfinished session on this device
+    try { const last = localStorage.getItem("rcstudy5:last"), d = last && JSON.parse(localStorage.getItem("rcstudy5:" + last));
+      if (d && d.view === "study" && !d.finishedAt && !d.preview && d.sched && d.sched.order){ Object.assign(state, d); state.shownAt = now(); logEv("restored_after_reload"); } } catch (e) {}
+  }
+  render(); }
 if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(() => JSON.parse(JSON.stringify(state)));
 window.claude && window.claude.hot && window.claude.hot.ready ? window.claude.hot.ready(start) : start(window.claude && window.claude.hot && window.claude.hot.data);
 </script>
