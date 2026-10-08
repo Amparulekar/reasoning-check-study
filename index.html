@@ -693,16 +693,16 @@ function rS1(){
 }
 function rS2(){
   const r = surveyState(), ok = r.s2_helps && r.s2_do;
-  return h("div", {class: "card stack narrow"}, h("div", {class: "eyebrow"}, "Part 4 · Your view · 2 of 3"), h("h2", null, "Four AIs, split answers"),
-    h("div", {class: "scen"}, h("p", null, "You have had a headache on and off for ten days. You ask four different AI systems whether you should see a doctor this week."),
+  return h("div", {class: "card stack narrow"}, h("div", {class: "eyebrow"}, "Part 4 · Your view · 2 of 3"), h("h2", null, "Four LLMs, split answers"),
+    h("div", {class: "scen"}, h("p", null, "You have had a headache on and off for ten days. You ask four different LLMs (AI chatbots such as ChatGPT) whether you should see a doctor this week."),
       h("p", null, h("b", null, "Two of them say: "), "“See a doctor this week.” ", h("b", null, "The other two say: "), "“Rest and keep an eye on it for another week.”")),
     h("h3", null, "1. What would help you decide? Choose all that apply."),
-    sMulti("s2_helps", [["vote", "Just knowing which answer more AI systems gave"], ["each_full", "Reading each AI system's full explanation"],
-      ["summary", "A few sentences summing up what the AI systems agree on and where they disagree"],
-      ["diagram", "A diagram of the reasons behind each answer, showing how many AI systems give each reason"],
+    sMulti("s2_helps", [["vote", "Just knowing which answer more LLMs gave"], ["each_full", "Reading each LLM's full explanation"],
+      ["summary", "A few sentences summing up what the LLMs agree on and where they disagree"],
+      ["diagram", "A diagram of the reasons behind each answer, showing how many LLMs give each reason"],
       ["human", "None of these: I would ask a doctor or another person"]]),
     h("h3", null, "2. With a 2-to-2 split and nothing else to go on, what would you most likely do?"),
-    sChoice("s2_do", [["safer", "Follow the more cautious answer"], ["ask_more", "Ask another AI system or ask again"], ["read_reasons", "Read the reasons and decide which side makes more sense"], ["person", "Ask a person instead"], ["ignore", "Ignore both"]]),
+    sChoice("s2_do", [["safer", "Follow the more cautious answer"], ["ask_more", "Ask another LLM or ask again"], ["read_reasons", "Read the reasons and decide which side makes more sense"], ["person", "Ask a person instead"], ["ignore", "Ignore both"]]),
     footer(ok, "Next"));
 }
 function rS3(){
