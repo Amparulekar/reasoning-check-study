@@ -68,7 +68,17 @@ textarea{width:100%;min-height:96px}
 .qpanel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);max-height:calc(100vh - 24px);overflow:auto}
 .rgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .rgrid>*{min-width:0}
-.rgrid .resp[open]{grid-column:1/-1}  /* opened text uses the full width */
+.respbtn{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;width:100%;text-align:left;padding:10px 12px;min-height:0}
+.respbtn::after{content:"Read";margin-left:auto;color:var(--accent);font-size:.88rem}
+.respbtn.seen{border-color:var(--plan);box-shadow:inset 3px 0 0 var(--plan)}
+.respbtn.seen::after{content:"✓ opened";color:var(--plan)}
+dialog.reader{width:min(760px,calc(100% - 32px));max-height:86vh;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+dialog.reader[open]{display:flex;flex-direction:column}
+dialog.reader::backdrop{background:rgba(10,15,25,.5)}
+.reader .rhead{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;padding:14px 18px;border-bottom:1px solid var(--line)}
+.reader .rbody{padding:14px 18px;white-space:pre-wrap;font-size:.95rem;line-height:1.6;overflow:auto;flex:1 1 auto}
+.reader .rfoot{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--line)}
+.howto{font-size:.88rem;color:var(--muted);margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:3px}
 .chip{display:inline-block;padding:1px 9px;border-radius:999px;background:var(--accent-soft);font-weight:700;font-size:.9rem}
 .legend{font-size:.85rem;color:var(--muted)}
 @media (max-width:980px){.p3grid{grid-template-columns:minmax(0,1fr)}.qpanel{position:static;max-height:none}.rgrid{grid-template-columns:minmax(0,1fr)}}
@@ -146,7 +156,7 @@ const N_SLOTS = 18, N_GROUPS = 6;  // 18 people = 6 groups x 3 replicates: every
 const BUDGET = {P0: 60, P3: 1200, P1: 240, P2: 180, P4: 240};   // seconds; display order = key order (main study first)
 // Display order (8 Oct, blinding): the main study comes first, before any description of how the reasoning was
 // processed. Internal ids stay P1 extraction, P2 merges, P3 main study, P4 survey (the data schema does not change).
-const PART_NAMES = {P0: "Introduction", P3: "Part 1 · How did the AI system reach its answer?", P1: "Part 2 · Is the step part of the reasoning?",
+const PART_NAMES = {P0: "Introduction", P3: "Part 1 · How did the AI system reach its answer?", P1: "Part 2 · Does the text say this?",
   P2: "Part 3 · Same claim or not?", P4: "Part 4 · Your view"};
 const OFFSET = {P1: 1, P2: 2};
 const CONDS = ["debate", "vote", "graph"];
@@ -163,9 +173,9 @@ const ATT_P2 = [
   {pair_id: "P2_ATT2", dataset: "attention", node_type: "Fact", context: "Two unrelated sentences.",
    text_a: "Mia owns two cats and a parrot.", text_b: "The last train to the airport leaves at midnight.",
    cosine: "", judge_verdict: "", above_threshold: "", is_attention_check: true, expected: "different"}];
-const P1_OPTIONS = [["yes", "Yes: the reasoning says this (the wording may differ)"],
-  ["partly", "Partly: the reasoning says some of this, but the step adds or changes something"],
-  ["no", "No: the reasoning does not say this"]];
+const P1_OPTIONS = [["yes", "Yes: the text says this (maybe in other words)"],
+  ["partly", "Partly: the text says some of this, but the step adds or changes something"],
+  ["no", "No: the text does not say this"]];
 const P2_OPTIONS = [["same", "Same claim"], ["different", "Different claims"], ["unsure", "Unsure"]];
 const NONE_OPT = {key: "none", text: "No attempt or agent argued for a different answer"};
 
@@ -221,7 +231,7 @@ const state = {view: "start", slot: 1, pid: "", preview: false, showKey: false, 
 const now = () => Date.now();
 function logEv(type, extra){ state.log.push(Object.assign({t: new Date().toISOString(), type, screen: state.i}, extra || {})); }
 // a session saved by another version of the page (other items or screen order) is never restored
-const PAGE_REV = "v6b:" + ((DATA.meta || {}).version_id || "");
+const PAGE_REV = "v6c:" + ((DATA.meta || {}).version_id || "");
 function saveLocal(){ state.pageRev = PAGE_REV; try { localStorage.setItem("rcstudy5:" + state.sessionId, JSON.stringify(state)); localStorage.setItem("rcstudy5:last", state.sessionId); } catch (e) {} }
 
 /* ============================================================ screens */
@@ -312,11 +322,13 @@ function calculator(){
     try { const r = Function('"use strict";return (' + v.replace(/%/g, "/100") + ")")(); res.textContent = "= " + (Math.round(r * 100) / 100).toLocaleString("en-US"); }
     catch (e) { res.textContent = "Check the expression"; } };
   inp.addEventListener("input", run);
-  return h("div", {class: "stack", style: "gap:6px"}, h("div", {class: "label"}, "Calculator"), inp, res);
+  return h("div", {class: "stack", style: "gap:6px"}, h("div", {class: "label"}, "Calculator (optional: use it if you want to check a number)"), inp, res);
 }
 function lawBlock(ref){  // the relevant parts of the statute, verbatim; the one-clause fragment only as a fallback
   const sf = ref.statute_full;
-  return h("div", null, h("div", {class: "label"}, sf ? `The law: the parts that matter (${sf.cite})` : "The law (statute)"),
+  const cite = sf ? String(sf.cite).replace(/§\s*/g, "section ") : "";
+  return h("div", {class: "stack", style: "gap:6px"}, h("div", {class: "label"}, sf ? `The law: the parts that matter, from the US tax code, ${cite}` : "The law (US tax code)"),
+    h("p", {class: "small muted"}, "How to read the references: “section 1(d)(v)” means section 1, subsection (d), item (v). “…” marks parts left out."),
     sf ? h("p", {class: "law"}, sf.text) : h("p", null, ref.statute));
 }
 function referencePanel(item){
@@ -468,10 +480,11 @@ function rIntro(){
   return h("div", {class: "card stack narrow"},
     h("h2", null, "How this works"),
     h("p", null, "We asked AI systems (LLMs) a set of questions, several times each. You will see how they reached their answers and tell us what you make of it."),
+    h("p", null, "In Part 1, each question has one final answer, combined from 4 different LLMs. We call this the AI system's answer."),
     h("p", null, "There are four parts:"),
     h("ol", {class: "stack", style: "gap:4px;padding-left:1.3em;margin:0"},
       h("li", null, "Look at how the AI systems reached an answer, shown in three different ways, and answer a few questions (about 20 minutes)."),
-      h("li", null, "Check that short steps really come from a piece of reasoning (about 3 minutes)."),
+      h("li", null, "Check that short steps taken from an AI system's text say only what the text says (about 3 minutes)."),
       h("li", null, "Check whether two steps make the same claim (about 4 minutes)."),
       h("li", null, "A short survey (about 4 minutes).")),
     h("p", {class: "muted"}, "There are no trick questions."),
@@ -480,20 +493,20 @@ function rIntro(){
 
 /* ----- Part 1: extraction */
 function rInstr1(){
-  return instr("P1", 4, "Is the step part of the reasoning?", [
+  return instr("P1", 4, "Does the original text say this?", [
     h("p", {class: "notice small"}, "Take a short break now if you need one."),
-    h("p", null, "An AI system wrote out its reasoning for a question. A second AI system then read that reasoning and pulled short steps out of it. Each step is meant to be a piece of that same reasoning, restated as one sentence. It should not add anything the reasoning did not say."),
-    h("p", null, h("b", null, "Your job: "), "check that the step really is part of the reasoning. You see the passage the step most likely came from; you can also open the whole reasoning."),
-    h("p", {class: "notice"}, h("b", null, "The step only has to be a part of the reasoning. "), "The reasoning will almost always say more than the step; that is fine and expected. Check only that everything the step says is also in the reasoning."),
+    h("p", null, "An AI system wrote out its reasoning for a question: we call this the original text. A second AI system then read the text and pulled short steps out of it. A step is one sentence that restates one point of the text. It should not add anything the text did not say."),
+    h("p", null, h("b", null, "Your job: "), "check that the original text really says what the step says. You see the passage the step most likely came from; you can also open the whole text."),
+    h("p", {class: "notice"}, h("b", null, "The step only has to cover one point. "), "The text will almost always say more than the step; that is fine and expected. Check only that everything the step says is also in the text."),
     h("ul", {class: "stack", style: "gap:4px;padding-left:1.3em;margin:0"},
-      h("li", null, h("b", null, "Yes"), " if the reasoning says what the step says, even in other words."),
-      h("li", null, h("b", null, "Partly"), " if the reasoning says some of it, but the step adds or changes something (a different number, an extra claim)."),
-      h("li", null, h("b", null, "No"), " if the reasoning does not say it anywhere.")),
+      h("li", null, h("b", null, "Yes"), " if the text says what the step says, even in other words."),
+      h("li", null, h("b", null, "Partly"), " if the text says some of it, but the step adds or changes something (a different number, an extra claim)."),
+      h("li", null, h("b", null, "No"), " if the text does not say it anywhere.")),
     h("p", {class: "muted"}, `${state.sched.P1.length} steps, about 20 seconds each. The next one appears when you choose.`)],
     h("div", {class: "stack", style: "gap:8px"},
       h("div", {class: "bigstep"}, h("span", {class: "tag Reasoning"}, "Reasoning"), "The excess of Alice's taxable income over $36,900 is $33,217."),
       h("div", {class: "excerpt"}, h("span", {class: "cut"}, "… "), "Her income of $70,117 falls in the second bracket. Subtracting the bracket floor gives $70,117 − $36,900 = $33,217, which is taxed at 28%.", h("span", {class: "cut"}, " …")),
-      h("p", {class: "small"}, h("b", null, "Answer: Yes."), " The reasoning computes the same amount in different words. If the step had said $33,000, the answer would be Partly.")),
+      h("p", {class: "small"}, h("b", null, "Answer: Yes."), " The text computes the same amount in different words. If the step had said $33,000, the answer would be Partly.")),
     null);
 }
 // the topic line above a step or pair: only orientation, so long questions are cut at a word, with an ellipsis
@@ -502,18 +515,18 @@ function rP1(sc){
   const it = sc.x, id = it.item_id;
   const r = state.resp.P1[id] || (state.resp.P1[id] = {item_id: id, shown: now()});
   const pick = v => { const first = !r.rating; r.rating = v; r.answered = now(); logEv("P1_rating", {item: id, value: v}); saveLocal(); render(); autoNext(first); };
-  const full = it.trace_full ? h("details", {class: "resp", "data-id": `${id}:full`}, h("summary", null, h("span", null, "The whole reasoning this step was taken from")), h("div", {class: "body"}, it.trace_full)) : null;
+  const full = it.trace_full ? h("details", {class: "resp", "data-id": `${id}:full`}, h("summary", null, h("span", null, "The whole original text this step was taken from")), h("div", {class: "body"}, it.trace_full)) : null;
   if (full) full.addEventListener("toggle", () => { if (full.open && !restoring){ r.opened_full = true; logEv("P1_full_opened", {item: id}); } });
   return h("div", {class: "card stack narrow"},
     h("div", {class: "row", style: "justify-content:space-between"}, h("span", {class: "eyebrow"}, `Step ${sc.pos} of ${state.sched.P1.length}`), h("span", {class: "small muted"}, ctxLabel(it.context))),
-    h("div", {class: "eyebrow"}, "Step taken from the reasoning"),
+    h("div", {class: "eyebrow"}, "Step taken from the text"),
     h("div", {class: "bigstep"}, h("span", {class: "tag " + it.step.type}, it.step.type), it.step.text),
-    h("div", {class: "eyebrow"}, "The passage of the reasoning it most likely came from"),
+    h("div", {class: "eyebrow"}, "The passage of the original text it most likely came from"),
     h("div", {class: "excerpt"}, it.excerpt.cut_before ? h("span", {class: "cut"}, "… ") : null, it.excerpt.text, it.excerpt.cut_after ? h("span", {class: "cut"}, " …") : null),
     full,
     keyBox(it.is_attention_check ? `ATTENTION CHECK, expected ${it.expected}` : `${it.dataset}, trace ${it.trace || ""}, stated by ${it.n_attest || "?"}/12`),
-    h("h3", null, "Is this step part of the reasoning?"),
-    h("p", {class: "small muted"}, "The reasoning may say more than the step. Check only that everything in the step is also in the reasoning."),
+    h("h3", null, "Does the original text say what this step says?"),
+    h("p", {class: "small muted"}, "The text may say more than the step. Check only that everything in the step is also in the text."),
     choices(P1_OPTIONS, r.rating, pick),
     h("div", {class: "foot"}, h("span", {class: "hint"}, PART_NAMES.P1), h("div", {class: "row"}, backButton(), r.rating ? h("button", {onclick: next}, "Next") : null)));
 }
@@ -521,7 +534,7 @@ function rP1(sc){
 /* ----- Part 2: merges */
 function rInstr2(){
   return instr("P2", 4, "Same claim or not?", [
-    h("p", null, "To combine the attempts, the AI system has to decide when two steps written by different attempts say the same thing, so they can be counted together. Help us check those decisions."),
+    h("p", null, "The AI system breaks each attempt into short steps and counts how many attempts make the same point. For that, it has to decide whether two steps say the same thing. Tell us whether you think they do."),
     h("ul", {class: "stack", style: "gap:4px;padding-left:1.3em;margin:0"},
       h("li", null, h("b", null, "Same claim"), ": the two steps say the same thing, even if worded differently."),
       h("li", null, h("b", null, "Different claims"), ": they say different things, for example different numbers, people or conditions, or one says more than the other."),
@@ -548,15 +561,29 @@ function rP2(sc){
 /* ----- Part 3: interpretability (three formats) */
 const COND_INFO = {
   debate: {title: "Format: a debate between LLMs", short: "Debate",
-    text: ["Four different LLMs discussed the question in three rounds. In each round, every LLM gives an answer and how confident it is (0 to 1). From round 2, they have read each other's answers.",
-           "Click an agent to read what it wrote."]},
+    remind: "4 LLMs (agents) answered in 3 rounds, reading each other's answers; each answer came with a confidence (“conf.”)",
+    text: ["Four different LLMs (called Agent 1 to 4) each answered the question. Then each one read the others' answers and could change its own. This happened three times (rounds 1 to 3).",
+           "With each answer, an LLM said how confident it was: “conf. 0.9” means it said it was 90% sure (0 = not at all, 1 = completely sure).",
+           "The AI system's answer is the LLMs' final vote after round 3, where more confident answers count more.",
+           "Click an agent to read what it wrote. Open a few; you don't need to read them all."]},
   vote: {title: "Format: 12 attempts and their vote", short: "12 attempts",
+    remind: "12 separate attempts, each with its answer and the vote count; you could open each attempt's reasoning",
     text: ["Four different LLMs each answered the question 3 times, separately: 12 attempts. You see each attempt's answer and the vote count.",
-           "Click an attempt to read its reasoning."]},
+           "The AI system's answer is the most common answer of the 12 attempts.",
+           "Click an attempt to read its reasoning. Open a few; you don't need to read them all."]},
   graph: {title: "Format: a graph of the 12 attempts with each step's support", short: "Graph with support counts",
-    text: ["Four different LLMs each answered the question 3 times, separately: 12 attempts. Their reasoning was combined into one graph of steps.",
+    remind: "the attempts' reasoning as numbered steps, each “said by n of 12 attempts”, with a small diagram of circles and arrows",
+    text: ["Four different LLMs each answered the question 3 times, separately: 12 attempts. Their reasoning was broken into short steps, and steps that say the same thing were counted together.",
            "Each step shows how many of the 12 attempts stated it, and a small diagram shows which steps build on which. Below it you see the reasoning behind the other answer.",
-           "A step's count can be lower than the answer's vote count: an attempt can reach the answer without stating that step."]}};
+           "A step's count can be lower than the answer's vote count: an attempt can reach the answer without stating that step.",
+           "The AI system's answer is the most common answer of the 12 attempts."]}};
+const HOWTO = {
+  debate: ["“conf.” = how sure the LLM said it was, from 0 (not at all) to 1 (completely sure).", "Click an agent to read what it wrote. Open a few; you don't need to read them all."],
+  vote: ["Click an attempt to read its reasoning. Open a few; you don't need to read them all."],
+  graph: ["A step is one short claim taken from the attempts. Fact = something from the question (or a known fact); Reasoning = something worked out from earlier steps; Conclusion = what the attempts conclude.",
+          "In the diagram, the numbers in the circles are step numbers (not counts). An arrow goes from a step to a step that builds on it. Circle colour = step type.",
+          "The bar under a step shows how many of the 12 attempts stated it."]};
+const howto = c => h("ul", {class: "howto"}, HOWTO[c].map(t => h("li", null, t)));
 function shortAns(it, label){  // short plain labels for lists; the full meaning is given once at the top
   const L = String(label);
   if (it.dataset === "sara") return {ENTAILED: "Supports", CONTRADICTED: "Contradicts"}[L] || L;
@@ -575,11 +602,12 @@ function rInstr3(sc){
       h("li", null, h("b", null, "Which point did most of the AI system's attempts or agents rely on?")),
       h("li", null, h("b", null, "Where did the ones that disagreed go a different way?"))),
     h("div", {class: "example"}, h("div", {class: "eyebrow"}, "Example"),
-      h("p", {class: "small"}, "Does Alice owe $14,836 in tax? 8 attempts say yes: the tax comes to $14,835.76. 4 say no: they work out 28% of $33,217 as $9,338.16."),
-      h("p", {class: "small"}, h("b", null, "1."), " Most relied on: the tax comes to about $14,836. ", h("b", null, "2."), " The others split off by miscalculating 28% of $33,217.")),
+      h("p", {class: "small"}, "Does Alice owe $14,836 in tax? 8 of the 12 attempts say yes: they get $14,835.76. 4 say no: they get 28% of $33,217 wrong, as $9,338.16."),
+      h("p", {class: "small"}, h("b", null, "“Which point did most rely on?” → "), "The tax comes to about $14,836."),
+      h("p", {class: "small"}, h("b", null, "“Where did the ones that disagreed go a different way?” → "), "The 4 attempts that said no got 28% of $33,217 wrong.")),
     h("p", null, "Then rate how well you understand it and how hard it was."),
     h("p", {class: "notice"}, h("b", null, "Please do this part without breaks"), " (about 20 minutes). You can take a break after it."),
-    h("p", {class: "muted"}, "About 3 minutes per question. The questions stay on the right while you look at the reasoning."),
+    h("p", {class: "muted"}, "About 3 minutes per question. First look through the reasoning on the left, then answer the questions on the right (they stay in view while you scroll)."),
     sc.warn ? h("p", {class: "notice small"}, "Some stories describe fictional murders. There are no graphic details.") : null], null, null);
 }
 function rCond(sc){
@@ -588,31 +616,50 @@ function rCond(sc){
     ...ci.text.map(t => h("p", null, t)), footer(true, "Show the questions"));
 }
 function supportBar(n){ return h("span", {class: "supp"}, h("span", {class: "bar", "aria-hidden": "true"}, Array.from({length: 12}, (_, i) => h("i", {class: i < n ? "on" : ""}))), `said by ${n} of 12 attempts`); }
-function respRow(head, text, onOpen, id){
-  const d = h("details", {class: "resp", "data-id": id || null}, h("summary", null, ...head), h("div", {class: "body"}, text || "(no text)"));
-  d.addEventListener("toggle", () => { if (d.open && !restoring) onOpen(); });
-  return d;
+// Debate / vote responses open in a pop-up (friend's pilot, 9 Oct: inline text made the page jump), with Previous /
+// Next through the same item's responses. Every response shown counts as opened; opened ones are marked.
+function reader(){ let d = document.getElementById("reader");
+  if (!d){ d = h("dialog", {id: "reader", class: "reader", "aria-label": "Response text"}); document.body.append(d);
+    d.addEventListener("close", () => { if (state.view === "study") render(); }); }
+  return d; }
+function openReader(entries, k){
+  const d = reader(), e = entries[k]; e.onOpen();
+  const nav = (j, label) => h("button", {disabled: j < 0 || j >= entries.length, onclick: () => openReader(entries, j)}, label);
+  d.replaceChildren(h("div", {class: "rhead"}, ...e.head(), h("span", {class: "small muted", style: "margin-left:auto"}, `${k + 1} of ${entries.length}`)),
+    h("div", {class: "rbody"}, e.text || "(no text)"),
+    h("div", {class: "rfoot"}, h("div", {class: "row"}, nav(k - 1, "← Previous"), nav(k + 1, "Next →")), h("button", {class: "primary", onclick: () => d.close()}, "Close")));
+  if (!d.open) d.showModal(); d.querySelector(".rbody").scrollTop = 0;
 }
+function respRows(entries, opened){
+  return entries.map((e, k) => h("button", {class: "respbtn" + (opened.includes(e.tag) ? " seen" : ""), onclick: () => openReader(entries, k)}, ...e.head()));
+}
+// SARA answers spelled out in full where the AI system's answer is shown ("The law contradicts the statement")
+function longAns(it, label){ return it.dataset === "sara" ? ({ENTAILED: "The law supports the statement", CONTRADICTED: "The law contradicts the statement"}[String(label)] || shortAns(it, label)) : shortAns(it, label); }
 function answerHead(it, label, extra){
-  return h("div", {class: "answerbox"}, h("span", {class: "small"}, "The AI system's answer"), h("b", null, shortAns(it, label)), extra ? h("span", {class: "small muted"}, extra) : null);
+  return h("div", {class: "answerbox"}, h("span", {class: "small"}, "The AI system's answer"), h("b", null, longAns(it, label)), extra ? h("span", {class: "small muted"}, extra) : null);
 }
-function viewDebate(it, onOpen){
+function viewDebate(it, onOpen, opened){
   const d = it.debate;
+  const entries = d.rounds.flatMap(rd => rd.responses.map(x => ({tag: `r${rd.round}:${x.agent}`, text: x.text, round: rd.round, onOpen: () => onOpen(`r${rd.round}:${x.agent}`),
+    head: () => [h("b", null, x.agent), rd.round ? h("span", {class: "small muted"}, `round ${rd.round}`) : null, h("span", {class: "chip"}, shortAns(it, x.answer)),
+      x.confidence != null ? h("span", {class: "conf"}, `conf. ${x.confidence}`) : null]})));
+  const rows = respRows(entries, opened);
   return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "Debate between 4 LLMs"),
-    answerHead(it, d.final_answer, "after the debate"),
-    legend(it) ? h("p", {class: "legend"}, legend(it)) : null,
+    answerHead(it, d.final_answer, "the LLMs' final vote after round 3, where more confident answers count more"),
+    legend(it) ? h("p", {class: "legend"}, legend(it)) : null, howto("debate"),
     ...d.rounds.map(rd => h("div", {class: "round"}, h("h3", null, `Round ${rd.round}`),
-      h("div", {class: "rgrid"}, ...rd.responses.map(x => respRow([h("b", null, x.agent), h("span", {class: "chip"}, shortAns(it, x.answer)),
-        x.confidence != null ? h("span", {class: "conf"}, `conf. ${x.confidence}`) : null], x.text, () => onOpen(`r${rd.round}:${x.agent}`), `${it.item_id}:r${rd.round}:${x.agent}`))))));
+      h("div", {class: "rgrid"}, ...rows.filter((_, k) => entries[k].round === rd.round)))));
 }
 function tally(it){ const c = {}; it.attempts.forEach(a => c[a.answer] = (c[a.answer] || 0) + 1);
   return Object.entries(c).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${shortAns(it, k)}: ${n}`).join(" · "); }
-function viewVote(it, onOpen){
+function viewVote(it, onOpen, opened){
   const n = it.attempts.filter(a => a.answer === it.answer).length;
+  const entries = it.attempts.map(a => ({tag: `a${a.attempt}`, text: a.text, onOpen: () => onOpen(`a${a.attempt}`),
+    head: () => [h("b", null, `Attempt ${a.attempt}`), h("span", {class: "chip"}, shortAns(it, a.answer))]}));
   return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "12 separate attempts"),
-    answerHead(it, it.answer, `${n} of ${it.attempts.length} attempts`),
-    h("p", {class: "small"}, h("b", null, "Votes: "), tally(it)), legend(it) ? h("p", {class: "legend"}, legend(it)) : null,
-    h("div", {class: "rgrid"}, ...it.attempts.map(a => respRow([h("b", null, `Attempt ${a.attempt}`), h("span", {class: "chip"}, shortAns(it, a.answer))], a.text, () => onOpen(`a${a.attempt}`), `${it.item_id}:a${a.attempt}`))));
+    answerHead(it, it.answer, `the most common answer: ${n} of ${it.attempts.length} attempts`),
+    h("p", {class: "small"}, h("b", null, "Votes: "), tally(it)), legend(it) ? h("p", {class: "legend"}, legend(it)) : null, howto("vote"),
+    h("div", {class: "rgrid"}, ...respRows(entries, opened)));
 }
 function supportSteps(steps){ return h("ol", {class: "steps"}, steps.map(s => h("li", {class: "step"}, h("span", {class: "n"}, s.id + "."),
   h("span", {class: "t"}, h("span", {class: "tag " + s.type}, s.type), s.text,
@@ -620,7 +667,7 @@ function supportSteps(steps){ return h("ol", {class: "steps"}, steps.map(s => h(
 function viewGraph(it){
   const g = it.graph, c = g.competing;
   return h("div", {class: "card stack"}, h("div", {class: "eyebrow"}, "Graph of the 12 attempts, with each step's support"),
-    answerHead(it, g.answer, `${g.votes} of 12 attempts`), legend(it) ? h("p", {class: "legend"}, legend(it)) : null,
+    answerHead(it, g.answer, `the most common answer: ${g.votes} of 12 attempts`), legend(it) ? h("p", {class: "legend"}, legend(it)) : null, howto("graph"),
     lineGraph(g.steps), supportSteps(g.steps),
     h("div", {class: "otherline"}, h("div", {class: "row", style: "justify-content:space-between"},
       h("div", null, h("div", {class: "eyebrow"}, "The other answer some attempts gave"), h("b", null, shortAns(it, c.answer))), h("span", {class: "small muted"}, `${c.votes} of 12 attempts`)),
@@ -648,15 +695,16 @@ function rP3(sc){
   const scale = (k, lo, hi) => h("div", {class: "stack", style: "gap:4px"}, h("div", {class: "scale"}, [1, 2, 3, 4, 5].map(v => h("button", {class: "choice", "aria-pressed": String(r[k] === v), onclick: () => set(k, v)}, h("b", null, v)))),
     h("div", {class: "row small muted", style: "justify-content:space-between"}, h("span", null, lo), h("span", null, hi)));
   const ok = r.accept && r.q1 && r.q2 && r.understand && r.confidence && r.effort;
-  const view = cond === "debate" ? viewDebate(it, onOpen) : cond === "vote" ? viewVote(it, onOpen) : viewGraph(it);
+  const view = cond === "debate" ? viewDebate(it, onOpen, r.opened) : cond === "vote" ? viewVote(it, onOpen, r.opened) : viewGraph(it);
   const ref = it.reference || {};
   const qhead = h("div", {class: "card stack"}, h("span", {class: "eyebrow"}, `Question ${sc.pos} of ${state.sched.P3.length} · ${COND_INFO[cond].short}`),
     ref.kind === "sara" ? h("div", {class: "stack", style: "gap:6px"}, h("p", null, h("b", null, "Case: "), ref.case), h("p", null, h("b", null, "Statement: "), ref.statement),
       h("p", {class: "small muted"}, "Does the law support or contradict the statement?")) : questionBox(it),
     keyBox(`${it.dataset}, ${cond}; correct: Q1 ${(q1.find(o => o.correct) || {}).key || "(public build)"}, Q2 ${(q2.find(o => o.correct) || {}).key || ""}; answer ${it.answer_correct ? "correct" : "wrong"}`));
-  const ansBox = h("div", {class: "answerbox", style: "padding:8px 12px"}, h("span", {class: "small"}, "The AI system's answer"), h("b", null, shortAns(it, it.answer)),
-    legend(it) ? h("span", {class: "small muted"}, {sara: "(whether the law supports the statement)", folio: "(whether the conclusion follows)"}[it.dataset] || "") : null);
+  const ansBox = h("div", {class: "answerbox", style: "padding:8px 12px"}, h("span", {class: "small"}, "The AI system's answer"), h("b", null, longAns(it, it.answer)),
+    it.dataset === "folio" ? h("span", {class: "small muted"}, "(whether the conclusion follows)") : null);
   const panel = h("div", {class: "card stack qcard qpanel", "data-keep": `qpanel:${id}`},
+    h("p", {class: "small muted"}, "First look through the reasoning shown with the question, then answer here."),
     h("h3", null, "1. Would you accept the AI system's answer?"), ansBox,
     choices([["yes", "Yes, I would accept it"], ["no", "No, I would not accept it"]], r.accept, v => set("accept", v)),
     h("h3", null, "2. How sure are you that the AI system's answer is right?"), scale("confidence", "not sure", "completely sure"),
@@ -680,7 +728,7 @@ function rP3Rank(){
     h("p", null, "Your earlier answers stay as they are. Here we want your view now, after seeing all three."),
     h("h3", null, "1. Rank the formats from easiest (1st) to hardest (3rd) for seeing how the AI system reached its answer."),
     ...order.map(c => h("div", {class: "row", style: "justify-content:space-between;border:1px solid var(--line);border-radius:8px;padding:8px 12px"},
-      h("b", null, fmtName(c)),
+      h("div", null, h("b", null, fmtName(c)), h("div", {class: "small muted"}, COND_INFO[c].remind)),
       h("div", {class: "row"}, [1, 2, 3].map(v => h("button", {class: "choice", style: "min-height:36px;padding:6px 12px;text-align:center", "aria-pressed": String(rk[c] === v), onclick: () => setRank(c, v)}, ["1st", "2nd", "3rd"][v - 1]))))),
     h("h3", null, "2. If the answer mattered to you, which would you want to see?"),
     sChoice("p3_prefer", order.map(c => [c, fmtName(c)]).concat([["none", "None of them: just the answer"]])),
@@ -719,7 +767,7 @@ function rS2(){
       ["summary", "A few sentences summing up what the LLMs agree on and where they disagree"],
       ["diagram", "A diagram of the reasons behind each answer, showing how many LLMs give each reason"],
       ["human", "None of these: I would ask a doctor or another person"]]),
-    h("h3", null, "2. With a 2-to-2 split and nothing else to go on, what would you most likely do?"),
+    h("h3", null, "2. With a 2-to-2 split and nothing else to go on, what would you most likely do first?"),
     sChoice("s2_do", [["safer", "Follow the more cautious answer"], ["ask_more", "Ask another LLM or ask again"], ["read_reasons", "Read the reasons and decide which side makes more sense"], ["person", "Ask a person instead"], ["ignore", "Ignore both"]]),
     footer(ok, "Next"));
 }
